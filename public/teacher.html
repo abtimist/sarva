@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teacher Display</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #ffffff;
+      font-family: sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+    #status {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: #888;
+      background: #111;
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+    #status.recording { color: #4ade80; }
+    #status.error { color: #f87171; }
+    #caption-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 1200px;
+    }
+    #caption {
+      font-size: 5rem;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.3;
+      color: #ffffff;
+      min-height: 2em;
+      transition: all 0.3s ease;
+    }
+    #caption.empty { color: #333; font-size: 2rem; font-weight: 400; }
+    #bottom {
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      margin-top: 32px;
+    }
+    #lang-select {
+      background: #1a1a1a;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 1rem;
+    }
+    #qr-container {
+      background: #fff;
+      padding: 12px;
+      border-radius: 12px;
+    }
+    #qr-label {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 8px;
+    }
+    #mic-btn {
+      background: #4ade80;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #mic-btn.active { background: #f87171; }
+  </style>
+</head>
+<body>
+  <div id="status">Not recording</div>
+
+  <div id="caption-box">
+    <div id="caption" class="empty">Waiting for speech...</div>
+  </div>
+
+  <div id="bottom">
+    <div>
+      <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:6px">Display language</label>
+      <select id="lang-select">
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+        <option value="ta">Tamil</option>
+        <option value="kn">Kannada</option>
+        <option value="te">Telugu</option>
+        <option value="ml">Malayalam</option>
+      </select>
+    </div>
+
+    <button id="mic-btn" onclick="toggleRecording()">🎤 Start Recording</button>
+
+    <div>
+      <div id="qr-container">
+        <div id="qrcode"></div>
+      </div>
+      <div id="qr-label">Students scan to join</div>
+    </div>
+  </div>
+
+  <script>
+const socket = io();
+let stream = null;
+let loopActive = false;  // this is the key fix
+let displayLang = "original";
+
+const studentUrl = window.location.origin + "/student";
+new QRCode(document.getElementById("qrcode"), {
+  text: studentUrl,
+  width: 140,
+  height: 140,
+  colorDark: "#000000",
+  colorLight: "#ffffff",
+});
+
+document.getElementById("lang-select").addEventListener("change", (e) => {
+  displayLang = e.target.value;
+});
+
+socket.on("caption", (data) => {
+  // Read dropdown directly — avoids stale variable bug
+  const lang = document.getElementById("lang-select").value;
+  const text = data[lang] || data.original;
+  const el = document.getElementById("caption");
+  el.classList.remove("empty");
+  el.textContent = text;
+});
+
+async function toggleRecording() {
+  if (loopActive) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      }
+    });
+
+    loopActive = true;
+    await fetch("/recording/start", { method: "POST" }); // tell server
+
+    document.getElementById("mic-btn").textContent = "⏹ Stop Recording";
+    document.getElementById("mic-btn").classList.add("active");
+    document.getElementById("status").textContent = "🔴 Recording...";
+    document.getElementById("status").classList.add("recording");
+    document.getElementById("status").classList.remove("error");
+
+    recordLoop();
+
+  } catch (e) {
+    document.getElementById("status").textContent = "Microphone error: " + e.message;
+    document.getElementById("status").classList.add("error");
+    loopActive = false;
+  }
+}
+
+function stopRecording() {
+  // Kill the flag FIRST — so onstop does not restart the loop
+  loopActive = false;
+  fetch("/recording/stop", { method: "POST" }); // tell server
+
+  // Then kill the mic
+  if (stream) {
+    stream.getTracks().forEach((t) => t.stop());
+    stream = null;
+  }
+
+  document.getElementById("mic-btn").textContent = "🎤 Start Recording";
+  document.getElementById("mic-btn").classList.remove("active");
+  document.getElementById("status").textContent = "Not recording";
+  document.getElementById("status").classList.remove("recording");
+  document.getElementById("caption").textContent = "Waiting for speech...";
+  document.getElementById("caption").classList.add("empty");
+}
+
+function recordLoop() {
+  // Check flag at entry — if stop was pressed, exit cleanly
+  if (!loopActive || !stream || !stream.active) return;
+
+  const chunks = [];
+  let recorder;
+
+  try {
+    recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+  } catch (e) {
+    recorder = new MediaRecorder(stream);
+  }
+
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
+  };
+
+  recorder.onstop = () => {
+    // Check flag again — stop may have been pressed while this chunk was recording
+    if (!loopActive) return;
+
+    if (chunks.length > 0) {
+      const blob = new Blob(chunks, { type: "audio/webm" });
+      if (blob.size > 500) {
+        const form = new FormData();
+        form.append("audio", blob, "audio.webm");
+        fetch("/audio-chunk", { method: "POST", body: form })
+          .catch((err) => console.warn("Upload error:", err));
+      }
+    }
+
+    // Only restart if still active
+    if (loopActive) recordLoop();
+  };
+
+  recorder.onerror = () => {
+    if (loopActive) setTimeout(() => recordLoop(), 300);
+  };
+
+  recorder.start();
+
+  setTimeout(() => {
+    if (recorder.state === "recording") recorder.stop();
+  }, 2000);
+}
+  </script>
+</body>
+</html>
