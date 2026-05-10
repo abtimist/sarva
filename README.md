@@ -49,31 +49,31 @@ Student phones → each shows caption in student's chosen language
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  Teacher Device                      │
+│                  Teacher Device                     │
 │   Browser → MediaRecorder → POST /audio-chunk       │
 └──────────────────────┬──────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────┐
-│              Node.js Server (index.js)               │
+│              Node.js Server (index.js)              │
 │   Express + Socket.io + Multer + Axios              │
-│                       │                              │
-│         POST /transcribe                             │
-│                       │                              │
+│                       │                             │
+│         POST /transcribe                            │
+│                       │                             │
 │   ┌───────────────────▼──────────────────────┐      │
 │   │     Python Flask Server (transcribe.py)  │      │
 │   │     Sarvam AI Saaras V3 API              │      │
 │   └───────────────────┬──────────────────────┘      │
-│                       │ transcript text              │
-│         Google Translate API (6 languages)           │
-│                       │                              │
-│         WebSocket broadcast → all clients            │
+│                       │ transcript text             │
+│         Google Translate API (6 languages)          │
+│                       │                             │
+│         WebSocket broadcast → all clients           │
 └──────────┬────────────────────────┬─────────────────┘
            │                        │
 ┌──────────▼───────┐    ┌───────────▼──────────────────┐
-│  Teacher Display │    │     Student Phones (N)        │
-│  teacher.html    │    │     student.html              │
-│  Large captions  │    │     Language picker           │
-│  + QR code       │    │     Scan QR → instant join    │
+│  Teacher Display │    │     Student Phones (N)       │
+│  teacher.html    │    │     student.html             │
+│  Large captions  │    │     Language picker          │
+│  + QR code       │    │     Scan QR → instant join   │
 └──────────────────┘    └──────────────────────────────┘
 ```
 
