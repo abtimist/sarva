@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Teacher Display</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="qrcode.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -119,32 +119,68 @@
   </div>
 
   <script>
-const socket = io();
+let socket;
+if (typeof io !== "undefined") {
+  socket = io();
+} else {
+  console.error("Socket.io library is not loaded.");
+  const statusEl = document.getElementById("status");
+  if (statusEl) {
+    statusEl.textContent = "Error: Socket.io failed to load";
+    statusEl.classList.add("error");
+  }
+}
 let stream = null;
 let loopActive = false;  // this is the key fix
 let displayLang = "original";
 
-const studentUrl = window.location.origin + "/student";
-new QRCode(document.getElementById("qrcode"), {
-  text: studentUrl,
-  width: 140,
-  height: 140,
-  colorDark: "#000000",
-  colorLight: "#ffffff",
-});
+// Fetch real IP from server so QR works on student phones
+async function generateQR() {
+  let studentUrl;
+  try {
+    const res = await fetch("/server-ip");
+    const data = await res.json();
+    studentUrl = `http://${data.ip}:${data.port}/student`;
+  } catch (e) {
+    studentUrl = window.location.origin + "/student";
+  }
+
+  if (typeof QRCode !== "undefined") {
+    new QRCode(document.getElementById("qrcode"), {
+      text: studentUrl,
+      width: 140,
+      height: 140,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+    });
+  } else {
+    console.error("QRCode library is not loaded.");
+    const qrEl = document.getElementById("qrcode");
+    if (qrEl) {
+      qrEl.innerHTML = `<div style="color:#f87171;font-size:0.8rem;padding:20px;text-align:center">QR Code library failed to load</div>`;
+    }
+  }
+
+  // Show the URL below QR so students can also type it manually
+  document.getElementById("qr-label").innerHTML =
+    `Students scan to join<br><span style="font-size:0.7rem;color:#aaa">${studentUrl}</span>`;
+}
+generateQR();
 
 document.getElementById("lang-select").addEventListener("change", (e) => {
   displayLang = e.target.value;
 });
 
-socket.on("caption", (data) => {
-  // Read dropdown directly — avoids stale variable bug
-  const lang = document.getElementById("lang-select").value;
-  const text = data[lang] || data.original;
-  const el = document.getElementById("caption");
-  el.classList.remove("empty");
-  el.textContent = text;
-});
+if (socket) {
+  socket.on("caption", (data) => {
+    // Read dropdown directly — avoids stale variable bug
+    const lang = document.getElementById("lang-select").value;
+    const text = data[lang] || data.original;
+    const el = document.getElementById("caption");
+    el.classList.remove("empty");
+    el.textContent = text;
+  });
+}
 
 async function toggleRecording() {
   if (loopActive) {
@@ -156,6 +192,14 @@ async function toggleRecording() {
 
 async function startRecording() {
   try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      let errorMsg = "Microphone access is not supported by your browser/device.";
+      if (!window.isSecureContext) {
+        errorMsg += " Note: Microphone access requires a secure context (HTTPS or localhost). Please access the website via localhost, 127.0.0.1, or HTTPS.";
+      }
+      throw new Error(errorMsg);
+    }
+
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,

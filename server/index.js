@@ -1,5 +1,18 @@
 const express = require("express");
 const http = require("http");
+const os = require("os");
+
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === "IPv4" && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return "localhost";
+}
 const { Server } = require("socket.io");
 const multer = require("multer");
 const cors = require("cors");
@@ -116,6 +129,14 @@ io.on("connection", (socket) => {
 });
 
 const PORT = 3000;
-server.listen(PORT, () => {
+const LOCAL_IP = getLocalIP();
+
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Student URL (for QR): http://${LOCAL_IP}:${PORT}/student`);
+  console.log(`Share this URL with students or let them scan the QR code`);
+});
+
+app.get("/server-ip", (req, res) => {
+  res.json({ ip: LOCAL_IP, port: PORT });
 });

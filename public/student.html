@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Live Captions</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -100,28 +100,38 @@
   </div>
 
   <script>
-    const socket = io();
+    // Connect back to whatever server served this page — works on any device
+    let socket;
+    if (typeof io !== "undefined") {
+      socket = io(window.location.origin);
+    } else {
+      console.error("Socket.io library is not loaded.");
+      const textEl = document.getElementById("conn-text");
+      if (textEl) textEl.textContent = "Error: Socket.io failed to load";
+    }
     let selectedLang = "original";
     const captionBuffer = [];
 
-    socket.on("connect", () => {
-      document.getElementById("connected-dot").classList.add("on");
-      document.getElementById("conn-text").textContent = "Connected";
-    });
-    socket.on("disconnect", () => {
-      document.getElementById("connected-dot").classList.remove("on");
-      document.getElementById("conn-text").textContent = "Disconnected";
-    });
+    if (socket) {
+      socket.on("connect", () => {
+        document.getElementById("connected-dot").classList.add("on");
+        document.getElementById("conn-text").textContent = "Connected";
+      });
+      socket.on("disconnect", () => {
+        document.getElementById("connected-dot").classList.remove("on");
+        document.getElementById("conn-text").textContent = "Disconnected";
+      });
+    }
 
     function setLang(btn) {
-  document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-  selectedLang = btn.dataset.lang;
-  // Clear buffer on language change so old language captions don't remain
-  captionBuffer.length = 0;
-  const container = document.getElementById("captions");
-  container.innerHTML = '<div id="waiting" style="color:#444;font-size:1.1rem;margin-top:60px;text-align:center">Waiting for teacher to start speaking...</div>';
-}
+      document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedLang = btn.dataset.lang;
+      // Clear buffer on language change so old language captions don't remain
+      captionBuffer.length = 0;
+      const container = document.getElementById("captions");
+      container.innerHTML = '<div id="waiting" style="color:#444;font-size:1.1rem;margin-top:60px;text-align:center">Waiting for teacher to start speaking...</div>';
+    }
 
     function renderBuffer() {
       const container = document.getElementById("captions");
@@ -135,12 +145,14 @@
       window.scrollTo(0, document.body.scrollHeight);
     }
 
-    socket.on("caption", (data) => {
-      document.getElementById("waiting")?.remove();
-      captionBuffer.push(data);
-      if (captionBuffer.length > 6) captionBuffer.shift(); // keep last 6
-      renderBuffer();
-    });
+    if (socket) {
+      socket.on("caption", (data) => {
+        document.getElementById("waiting")?.remove();
+        captionBuffer.push(data);
+        if (captionBuffer.length > 6) captionBuffer.shift(); // keep last 6
+        renderBuffer();
+      });
+    }
   </script>
 </body>
 </html>
