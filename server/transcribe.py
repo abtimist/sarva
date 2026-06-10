@@ -2,10 +2,22 @@ from flask import Flask, request, jsonify
 import requests
 import tempfile, os, subprocess
 
+def load_env():
+    for env_path in [".env", "../.env", "server/.env"]:
+        if os.path.exists(env_path):
+            with open(env_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, val = line.split("=", 1)
+                        os.environ[key.strip()] = val.strip().strip('"').strip("'")
+            break
+
+load_env()
+
 app = Flask(__name__)
 
-# Get free API key from https://www.sarvam.ai
-SARVAM_API_KEY = "sk_ka50trjg_upXafe0XjX61mOJfO5OixfJe"
+SARVAM_API_KEY = os.environ.get("SARVAM_API_KEY")
 
 def convert_to_wav(input_path):
     wav_path = input_path + ".wav"
@@ -40,11 +52,11 @@ def transcribe():
                 files={"file": ("audio.wav", f, "audio/wav")},
                 data={
                     "model": "saaras:v3",
-                    "language_code": "unknown",  # auto-detect language
+                    "language_code": "unknown",
                     "with_timestamps": "false",
                     "debug_mode": "false"
                 },
-                timeout=10  # 10 seconds is plenty
+                timeout=10
             )
 
         if response.status_code == 200:
@@ -68,5 +80,6 @@ def transcribe():
             pass
 
 if __name__ == "__main__":
-    print("Sarvam STT service ready on port 5001")
-    app.run(port=5001, debug=False)
+    transcribe_port = int(os.environ.get("TRANSCRIBE_PORT", 5001))
+    print(f"Sarvam STT service ready on port {transcribe_port}")
+    app.run(port=transcribe_port, debug=False)

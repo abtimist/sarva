@@ -1,6 +1,14 @@
 const express = require("express");
 const http = require("http");
 const os = require("os");
+const path = require("path");
+const fs = require("fs");
+
+try {
+  process.loadEnvFile(path.join(__dirname, "../.env"));
+} catch (e) {
+  // Environment variables are loaded from the system environment
+}
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
@@ -17,9 +25,7 @@ const { Server } = require("socket.io");
 const multer = require("multer");
 const cors = require("cors");
 const axios = require("axios");
-const path = require("path");
 const FormData = require("form-data");
-const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
@@ -29,7 +35,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../public")));
 
-const upload = multer({ dest: "/tmp/audio-uploads/" });
+const upload = multer({ dest: path.join(os.tmpdir(), "audio-uploads") });
 let isRecording = false;
 
 const LANGUAGES = {
@@ -76,8 +82,9 @@ app.post("/audio-chunk", upload.single("audio"), async (req, res) => {
       contentType: "audio/webm",
     });
 
+    const transcribePort = process.env.TRANSCRIBE_PORT || 5001;
     const transcribeRes = await axios.post(
-      "http://localhost:5001/transcribe",
+      `http://localhost:${transcribePort}/transcribe`,
       form,
       { headers: form.getHeaders(), timeout: 30000 }
     );
@@ -97,12 +104,9 @@ app.post("/audio-chunk", upload.single("audio"), async (req, res) => {
     );
 
     const payload = { original: originalText };
-translations.forEach(([lang, text]) => {
-  payload[lang] = text;
-});
-// original is raw transcription — may be any language
-// en field is always the English translation
-console.log("Broadcasting:", payload);
+    translations.forEach(([lang, text]) => {
+      payload[lang] = text;
+    });
 
     console.log("Broadcasting:", payload);
     io.emit("caption", payload);
@@ -128,7 +132,7 @@ io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const LOCAL_IP = getLocalIP();
 
 server.listen(PORT, "0.0.0.0", () => {

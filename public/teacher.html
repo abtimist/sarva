@@ -131,10 +131,9 @@ if (typeof io !== "undefined") {
   }
 }
 let stream = null;
-let loopActive = false;  // this is the key fix
+let loopActive = false;
 let displayLang = "original";
 
-// Fetch real IP from server so QR works on student phones
 async function generateQR() {
   let studentUrl;
   try {
@@ -161,7 +160,6 @@ async function generateQR() {
     }
   }
 
-  // Show the URL below QR so students can also type it manually
   document.getElementById("qr-label").innerHTML =
     `Students scan to join<br><span style="font-size:0.7rem;color:#aaa">${studentUrl}</span>`;
 }
@@ -173,7 +171,6 @@ document.getElementById("lang-select").addEventListener("change", (e) => {
 
 if (socket) {
   socket.on("caption", (data) => {
-    // Read dropdown directly — avoids stale variable bug
     const lang = document.getElementById("lang-select").value;
     const text = data[lang] || data.original;
     const el = document.getElementById("caption");
@@ -209,7 +206,7 @@ async function startRecording() {
     });
 
     loopActive = true;
-    await fetch("/recording/start", { method: "POST" }); // tell server
+    await fetch("/recording/start", { method: "POST" });
 
     document.getElementById("mic-btn").textContent = "⏹ Stop Recording";
     document.getElementById("mic-btn").classList.add("active");
@@ -227,11 +224,9 @@ async function startRecording() {
 }
 
 function stopRecording() {
-  // Kill the flag FIRST — so onstop does not restart the loop
   loopActive = false;
-  fetch("/recording/stop", { method: "POST" }); // tell server
+  fetch("/recording/stop", { method: "POST" });
 
-  // Then kill the mic
   if (stream) {
     stream.getTracks().forEach((t) => t.stop());
     stream = null;
@@ -246,7 +241,6 @@ function stopRecording() {
 }
 
 function recordLoop() {
-  // Check flag at entry — if stop was pressed, exit cleanly
   if (!loopActive || !stream || !stream.active) return;
 
   const chunks = [];
@@ -263,7 +257,6 @@ function recordLoop() {
   };
 
   recorder.onstop = () => {
-    // Check flag again — stop may have been pressed while this chunk was recording
     if (!loopActive) return;
 
     if (chunks.length > 0) {
@@ -276,7 +269,6 @@ function recordLoop() {
       }
     }
 
-    // Only restart if still active
     if (loopActive) recordLoop();
   };
 

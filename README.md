@@ -135,14 +135,17 @@ sudo apt install ffmpeg
 brew install ffmpeg
 ```
 
-**5. Add your Sarvam AI API key**
+**5. Set up Environment Variables**
 
-Open `server/transcribe.py` and replace:
-```python
-SARVAM_API_KEY = "your-sarvam-api-key-here"
+Create a `.env` file in the root of the project by copying `.env.example`:
+```bash
+cp .env.example .env
 ```
 
-Get your free API key at [sarvam.ai](https://www.sarvam.ai)
+Open `.env` and fill in your settings:
+- `SARVAM_API_KEY`: Your Sarvam AI API Key (get a free key at [sarvam.ai](https://www.sarvam.ai))
+- `PORT`: Web server port (default: `3000`)
+- `TRANSCRIBE_PORT`: Speech-to-text service port (default: `5001`)
 
 ---
 

@@ -100,7 +100,6 @@
   </div>
 
   <script>
-    // Connect back to whatever server served this page — works on any device
     let socket;
     if (typeof io !== "undefined") {
       socket = io(window.location.origin);
@@ -127,7 +126,6 @@
       document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       selectedLang = btn.dataset.lang;
-      // Clear buffer on language change so old language captions don't remain
       captionBuffer.length = 0;
       const container = document.getElementById("captions");
       container.innerHTML = '<div id="waiting" style="color:#444;font-size:1.1rem;margin-top:60px;text-align:center">Waiting for teacher to start speaking...</div>';
@@ -149,7 +147,7 @@
       socket.on("caption", (data) => {
         document.getElementById("waiting")?.remove();
         captionBuffer.push(data);
-        if (captionBuffer.length > 6) captionBuffer.shift(); // keep last 6
+        if (captionBuffer.length > 6) captionBuffer.shift();
         renderBuffer();
       });
     }
