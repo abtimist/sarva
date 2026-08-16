@@ -3,88 +3,167 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Captions</title>
+  <title>Sarva — Live Captions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #0a0a0a;
+      background: #050510;
       color: #fff;
-      font-family: sans-serif;
+      font-family: 'Outfit', sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      padding: 20px 16px 40px;
     }
-    h1 { font-size: 1.1rem; color: #888; margin-bottom: 20px; font-weight: 400; }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(74, 222, 128, 0.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 90%, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-top: 8px;
+    }
+
+    #app-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #4ade80;
+      letter-spacing: 0.04em;
+    }
+
+    #conn-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.35);
+      font-weight: 500;
+    }
+
+    #connected-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #f87171;
+      transition: background 0.3s;
+    }
+    #connected-dot.on {
+      background: #4ade80;
+      box-shadow: 0 0 6px rgba(74,222,128,0.6);
+    }
+
+    /* ── Language Picker ── */
     #lang-picker {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       justify-content: center;
-      margin-bottom: 32px;
+      margin-bottom: 24px;
+      width: 100%;
+      max-width: 600px;
     }
+
     .lang-btn {
-      background: #1a1a1a;
-      color: #fff;
-      border: 2px solid #333;
-      border-radius: 10px;
-      padding: 10px 18px;
-      font-size: 1rem;
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px;
+      padding: 8px 18px;
+      font-size: 0.9rem;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+    }
+    .lang-btn:hover {
+      background: rgba(74,222,128,0.1);
+      border-color: rgba(74,222,128,0.3);
+      color: #fff;
     }
     .lang-btn.active {
-      background: #4ade80;
-      color: #000;
-      border-color: #4ade80;
+      background: rgba(74,222,128,0.15);
+      color: #4ade80;
+      border-color: rgba(74,222,128,0.5);
       font-weight: 700;
+      box-shadow: 0 0 12px rgba(74,222,128,0.15);
     }
+
+    /* ── Captions ── */
     #captions {
       width: 100%;
       max-width: 600px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
+
     .caption-line {
-      background: #111;
-      border-left: 4px solid #4ade80;
-      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-left: 3px solid rgba(74,222,128,0.7);
+      border-radius: 14px;
       padding: 16px 20px;
-      font-size: 1.6rem;
+      font-size: 1.5rem;
+      font-weight: 400;
       line-height: 1.5;
-      animation: fadeIn 0.3s ease;
+      animation: slideUp 0.35s ease;
+      backdrop-filter: blur(8px);
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+
+    .caption-line:last-child {
+      background: rgba(74,222,128,0.06);
+      border-color: rgba(74,222,128,0.2);
+      border-left-color: #4ade80;
+      color: #fff;
+      font-weight: 600;
     }
-    #waiting {
-      color: #444;
+
+    .caption-line:not(:last-child) {
+      color: rgba(255,255,255,0.45);
       font-size: 1.1rem;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #waiting {
+      color: rgba(255,255,255,0.2);
+      font-size: 1rem;
       margin-top: 60px;
       text-align: center;
+      font-weight: 400;
+      letter-spacing: 0.02em;
     }
-    #connected-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #f87171;
-      display: inline-block;
-      margin-right: 6px;
-    }
-    #connected-dot.on { background: #4ade80; }
-    #conn-status { font-size: 0.8rem; color: #555; margin-bottom: 16px; display: flex; align-items: center; }
   </style>
 </head>
 <body>
-  <h1>Live Classroom Captions</h1>
 
-  <div id="conn-status">
-    <span id="connected-dot"></span>
-    <span id="conn-text">Connecting...</span>
-  </div>
+  <header>
+    <div id="app-title">⚡ Sarva</div>
+    <div id="conn-status">
+      <span id="connected-dot"></span>
+      <span id="conn-text">Connecting...</span>
+    </div>
+  </header>
 
   <div id="lang-picker">
     <button class="lang-btn active" data-lang="en" onclick="setLang(this)">English</button>
@@ -102,13 +181,13 @@
   <script>
     let socket;
     if (typeof io !== "undefined") {
-      socket = io(window.location.origin);
+      socket = io(window.location.origin, { query: { type: "student" } });
     } else {
-      console.error("Socket.io library is not loaded.");
       const textEl = document.getElementById("conn-text");
       if (textEl) textEl.textContent = "Error: Socket.io failed to load";
     }
-    let selectedLang = "original";
+
+    let selectedLang = "en";
     const captionBuffer = [];
 
     if (socket) {
@@ -128,7 +207,7 @@
       selectedLang = btn.dataset.lang;
       captionBuffer.length = 0;
       const container = document.getElementById("captions");
-      container.innerHTML = '<div id="waiting" style="color:#444;font-size:1.1rem;margin-top:60px;text-align:center">Waiting for teacher to start speaking...</div>';
+      container.innerHTML = '<div id="waiting">Waiting for teacher to start speaking...</div>';
     }
 
     function renderBuffer() {
@@ -140,7 +219,7 @@
         div.textContent = data[selectedLang] || data.original;
         container.appendChild(div);
       });
-      window.scrollTo(0, document.body.scrollHeight);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     }
 
     if (socket) {

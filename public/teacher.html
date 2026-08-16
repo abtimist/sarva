@@ -3,35 +3,117 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Teacher Display</title>
+  <title>Sarva — Teacher Display</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <script src="/socket.io/socket.io.js"></script>
   <script src="qrcode.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #0a0a0a;
+      background: #050510;
       color: #ffffff;
-      font-family: sans-serif;
+      font-family: 'Outfit', sans-serif;
       height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px;
+      padding: 32px 40px;
+      overflow: hidden;
     }
-    #status {
+
+    body::before {
+      content: '';
       position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 14px;
-      color: #888;
-      background: #111;
-      padding: 6px 16px;
-      border-radius: 20px;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(74, 222, 128, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(99, 102, 241, 0.06) 0%, transparent 60%);
+      pointer-events: none;
     }
-    #status.recording { color: #4ade80; }
-    #status.error { color: #f87171; }
+
+    /* ── Status bar ── */
+    #topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: rgba(10, 10, 20, 0.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      z-index: 10;
+    }
+
+    #logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #4ade80;
+    }
+
+    #topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      color: #aaa;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    #student-count-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+
+    #status-badge { }
+    #status-badge.recording {
+      background: rgba(74, 222, 128, 0.12);
+      border-color: rgba(74, 222, 128, 0.3);
+      color: #4ade80;
+    }
+    #status-badge.error {
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(248, 113, 113, 0.3);
+      color: #f87171;
+    }
+
+    #latency-badge.fast { color: #4ade80; border-color: rgba(74,222,128,0.25); }
+    #latency-badge.medium { color: #fbbf24; border-color: rgba(251,191,36,0.25); }
+    #latency-badge.slow { color: #f87171; border-color: rgba(248,113,113,0.25); }
+
+    /* ── Waveform ── */
+    #waveform-container {
+      width: 100%;
+      max-width: 900px;
+      height: 72px;
+      margin-bottom: 12px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #waveform-container.active { opacity: 1; }
+    #waveform {
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+    }
+
+    /* ── Caption box ── */
     #caption-box {
       flex: 1;
       display: flex;
@@ -39,82 +121,144 @@
       justify-content: center;
       width: 100%;
       max-width: 1200px;
+      padding: 0 20px;
     }
+
     #caption {
       font-size: 5rem;
-      font-weight: 700;
+      font-weight: 800;
       text-align: center;
-      line-height: 1.3;
+      line-height: 1.25;
       color: #ffffff;
       min-height: 2em;
-      transition: all 0.3s ease;
+      transition: all 0.4s ease;
+      text-shadow: 0 0 40px rgba(74, 222, 128, 0.15);
     }
-    #caption.empty { color: #333; font-size: 2rem; font-weight: 400; }
+    #caption.empty {
+      color: rgba(255,255,255,0.15);
+      font-size: 2rem;
+      font-weight: 400;
+    }
+
+    /* ── Bottom controls ── */
     #bottom {
       display: flex;
-      align-items: center;
-      gap: 40px;
-      margin-top: 32px;
+      align-items: flex-end;
+      gap: 28px;
+      margin-top: 20px;
+      padding: 20px 28px;
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 20px;
     }
+
+    .control-group label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 8px;
+    }
+
     #lang-select {
-      background: #1a1a1a;
+      background: rgba(255,255,255,0.06);
       color: #fff;
-      border: 1px solid #333;
-      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
       padding: 10px 16px;
-      font-size: 1rem;
+      font-size: 0.95rem;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
     }
+    #lang-select:hover { border-color: rgba(74,222,128,0.4); }
+
+    #mic-btn {
+      background: linear-gradient(135deg, #4ade80, #22c55e);
+      color: #000;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 36px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 24px rgba(74, 222, 128, 0.3);
+      letter-spacing: 0.02em;
+    }
+    #mic-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(74, 222, 128, 0.45); }
+    #mic-btn:active { transform: translateY(0); }
+    #mic-btn.active {
+      background: linear-gradient(135deg, #f87171, #ef4444);
+      box-shadow: 0 4px 24px rgba(248, 113, 113, 0.35);
+    }
+
     #qr-container {
       background: #fff;
-      padding: 12px;
+      padding: 10px;
       border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     #qr-label {
       text-align: center;
-      font-size: 0.85rem;
-      color: #888;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.4);
       margin-top: 8px;
+      font-weight: 500;
     }
-    #mic-btn {
-      background: #4ade80;
-      color: #000;
-      border: none;
-      border-radius: 12px;
-      padding: 14px 32px;
-      font-size: 1.1rem;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    #mic-btn.active { background: #f87171; }
   </style>
 </head>
 <body>
-  <div id="status">Not recording</div>
+
+  <div id="topbar">
+    <div id="logo">⚡ Sarva</div>
+    <div id="topbar-right">
+      <div class="badge" id="student-count-badge">
+        <span class="dot"></span>
+        <span id="student-count-text">0 Students</span>
+      </div>
+      <div class="badge" id="latency-badge">⏱ —ms</div>
+      <div class="badge" id="status-badge">Not recording</div>
+    </div>
+  </div>
+
+  <div id="waveform-container">
+    <canvas id="waveform"></canvas>
+  </div>
 
   <div id="caption-box">
     <div id="caption" class="empty">Waiting for speech...</div>
   </div>
 
   <div id="bottom">
-    <div>
-      <label style="color:#888;font-size:0.85rem;display:block;margin-bottom:6px">Display language</label>
+    <div class="control-group">
+      <label>Display Language</label>
       <select id="lang-select">
         <option value="en">English</option>
-        <option value="hi">Hindi</option>
-        <option value="ta">Tamil</option>
-        <option value="kn">Kannada</option>
-        <option value="te">Telugu</option>
-        <option value="ml">Malayalam</option>
+        <option value="hi">हिन्दी</option>
+        <option value="ta">தமிழ்</option>
+        <option value="kn">ಕನ್ನಡ</option>
+        <option value="te">తెలుగు</option>
+        <option value="ml">മലയാളം</option>
       </select>
     </div>
 
-    <button id="mic-btn" onclick="toggleRecording()">🎤 Start Recording</button>
+    <div class="control-group">
+      <label>Microphone</label>
+      <button id="mic-btn" onclick="toggleRecording()">🎤 Start Recording</button>
+    </div>
 
-    <div>
+    <div class="control-group">
+      <label>Student Join</label>
       <div id="qr-container">
         <div id="qrcode"></div>
       </div>
-      <div id="qr-label">Students scan to join</div>
+      <div id="qr-label">Scan to join</div>
     </div>
   </div>
 
@@ -123,17 +267,20 @@ let socket;
 if (typeof io !== "undefined") {
   socket = io();
 } else {
-  console.error("Socket.io library is not loaded.");
-  const statusEl = document.getElementById("status");
-  if (statusEl) {
-    statusEl.textContent = "Error: Socket.io failed to load";
-    statusEl.classList.add("error");
+  const statusBadge = document.getElementById("status-badge");
+  if (statusBadge) {
+    statusBadge.textContent = "Socket.io failed to load";
+    statusBadge.classList.add("error");
   }
 }
+
 let stream = null;
 let loopActive = false;
-let displayLang = "original";
+let audioCtx = null;
+let analyser = null;
+let waveformAnimId = null;
 
+// ── QR Code ──
 async function generateQR() {
   let studentUrl;
   try {
@@ -147,28 +294,25 @@ async function generateQR() {
   if (typeof QRCode !== "undefined") {
     new QRCode(document.getElementById("qrcode"), {
       text: studentUrl,
-      width: 140,
-      height: 140,
+      width: 120,
+      height: 120,
       colorDark: "#000000",
       colorLight: "#ffffff",
     });
   } else {
-    console.error("QRCode library is not loaded.");
-    const qrEl = document.getElementById("qrcode");
-    if (qrEl) {
-      qrEl.innerHTML = `<div style="color:#f87171;font-size:0.8rem;padding:20px;text-align:center">QR Code library failed to load</div>`;
-    }
+    document.getElementById("qrcode").innerHTML =
+      `<div style="color:#f87171;font-size:0.75rem;padding:14px;text-align:center">QR failed to load</div>`;
   }
 
   document.getElementById("qr-label").innerHTML =
-    `Students scan to join<br><span style="font-size:0.7rem;color:#aaa">${studentUrl}</span>`;
+    `<span style="font-size:0.65rem;color:rgba(255,255,255,0.3)">${studentUrl}</span>`;
 }
 generateQR();
 
-document.getElementById("lang-select").addEventListener("change", (e) => {
-  displayLang = e.target.value;
-});
+// ── Language select ──
+document.getElementById("lang-select").addEventListener("change", () => {});
 
+// ── Socket events ──
 if (socket) {
   socket.on("caption", (data) => {
     const lang = document.getElementById("lang-select").value;
@@ -176,9 +320,21 @@ if (socket) {
     const el = document.getElementById("caption");
     el.classList.remove("empty");
     el.textContent = text;
+
+    if (data.processingMs !== undefined) {
+      const badge = document.getElementById("latency-badge");
+      badge.textContent = `⏱ ${data.processingMs}ms`;
+      badge.className = "badge " + (data.processingMs < 1500 ? "fast" : data.processingMs < 3000 ? "medium" : "slow");
+    }
+  });
+
+  socket.on("student-count", (count) => {
+    document.getElementById("student-count-text").textContent =
+      `${count} Student${count !== 1 ? "s" : ""}`;
   });
 }
 
+// ── Recording ──
 async function toggleRecording() {
   if (loopActive) {
     stopRecording();
@@ -192,17 +348,13 @@ async function startRecording() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       let errorMsg = "Microphone access is not supported by your browser/device.";
       if (!window.isSecureContext) {
-        errorMsg += " Note: Microphone access requires a secure context (HTTPS or localhost). Please access the website via localhost, 127.0.0.1, or HTTPS.";
+        errorMsg += " Requires HTTPS or localhost.";
       }
       throw new Error(errorMsg);
     }
 
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      }
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
 
     loopActive = true;
@@ -210,15 +362,18 @@ async function startRecording() {
 
     document.getElementById("mic-btn").textContent = "⏹ Stop Recording";
     document.getElementById("mic-btn").classList.add("active");
-    document.getElementById("status").textContent = "🔴 Recording...";
-    document.getElementById("status").classList.add("recording");
-    document.getElementById("status").classList.remove("error");
 
+    const statusBadge = document.getElementById("status-badge");
+    statusBadge.textContent = "🔴 Recording...";
+    statusBadge.className = "badge recording";
+
+    startWaveform();
     recordLoop();
 
   } catch (e) {
-    document.getElementById("status").textContent = "Microphone error: " + e.message;
-    document.getElementById("status").classList.add("error");
+    const statusBadge = document.getElementById("status-badge");
+    statusBadge.textContent = "⚠ " + e.message;
+    statusBadge.className = "badge error";
     loopActive = false;
   }
 }
@@ -232,14 +387,92 @@ function stopRecording() {
     stream = null;
   }
 
+  stopWaveform();
+
   document.getElementById("mic-btn").textContent = "🎤 Start Recording";
   document.getElementById("mic-btn").classList.remove("active");
-  document.getElementById("status").textContent = "Not recording";
-  document.getElementById("status").classList.remove("recording");
+
+  const statusBadge = document.getElementById("status-badge");
+  statusBadge.textContent = "Not recording";
+  statusBadge.className = "badge";
+
   document.getElementById("caption").textContent = "Waiting for speech...";
   document.getElementById("caption").classList.add("empty");
 }
 
+// ── Waveform ──
+function startWaveform() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  const source = audioCtx.createMediaStreamSource(stream);
+  source.connect(analyser);
+
+  const container = document.getElementById("waveform-container");
+  const canvas = document.getElementById("waveform");
+  container.classList.add("active");
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+
+  drawWaveform();
+}
+
+function drawWaveform() {
+  if (!analyser) return;
+  waveformAnimId = requestAnimationFrame(drawWaveform);
+
+  const canvas = document.getElementById("waveform");
+  const ctx = canvas.getContext("2d");
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  analyser.getByteTimeDomainData(dataArray);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  gradient.addColorStop(0, "rgba(74,222,128,0.3)");
+  gradient.addColorStop(0.5, "rgba(74,222,128,0.9)");
+  gradient.addColorStop(1, "rgba(74,222,128,0.3)");
+
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = gradient;
+  ctx.shadowColor = "#4ade80";
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+
+  const sliceWidth = canvas.width / bufferLength;
+  let x = 0;
+
+  for (let i = 0; i < bufferLength; i++) {
+    const v = dataArray[i] / 128.0;
+    const y = (v * canvas.height) / 2;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+    x += sliceWidth;
+  }
+
+  ctx.lineTo(canvas.width, canvas.height / 2);
+  ctx.stroke();
+}
+
+function stopWaveform() {
+  if (waveformAnimId) {
+    cancelAnimationFrame(waveformAnimId);
+    waveformAnimId = null;
+  }
+  if (audioCtx) {
+    audioCtx.close();
+    audioCtx = null;
+    analyser = null;
+  }
+  const container = document.getElementById("waveform-container");
+  const canvas = document.getElementById("waveform");
+  container.classList.remove("active");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// ── Record loop ──
 function recordLoop() {
   if (!loopActive || !stream || !stream.active) return;
 

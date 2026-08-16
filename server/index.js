@@ -57,6 +57,7 @@ async function translateText(text, targetLang) {
     return text;
   }
 }
+
 app.post("/recording/start", (req, res) => {
   isRecording = true;
   console.log("Recording started");
@@ -68,12 +69,15 @@ app.post("/recording/stop", (req, res) => {
   console.log("Recording stopped");
   res.json({ ok: true });
 });
+
 app.post("/audio-chunk", upload.single("audio"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "no file" });
   if (!isRecording) {
-  if (req.file) fs.unlinkSync(req.file.path);
-  return res.json({ ok: true, text: "" });
-}
+    if (req.file) fs.unlinkSync(req.file.path);
+    return res.json({ ok: true, text: "" });
+  }
+
+  const startTime = Date.now();
 
   try {
     const form = new FormData();
@@ -108,7 +112,9 @@ app.post("/audio-chunk", upload.single("audio"), async (req, res) => {
       payload[lang] = text;
     });
 
-    console.log("Broadcasting:", payload);
+    payload.processingMs = Date.now() - startTime;
+
+    console.log(`Broadcasting (${payload.processingMs}ms):`, payload);
     io.emit("caption", payload);
 
     fs.unlinkSync(req.file.path);
@@ -128,8 +134,24 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/teacher.html"));
 });
 
+const studentSockets = new Set();
+
 io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
+  const clientType = socket.handshake.query.type;
+  console.log(`Client connected [${clientType || "unknown"}]:`, socket.id);
+
+  if (clientType === "student") {
+    studentSockets.add(socket.id);
+    io.emit("student-count", studentSockets.size);
+  }
+
+  socket.on("disconnect", () => {
+    if (studentSockets.has(socket.id)) {
+      studentSockets.delete(socket.id);
+      io.emit("student-count", studentSockets.size);
+    }
+    console.log("Client disconnected:", socket.id);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
