@@ -9,18 +9,15 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="qrcode.min.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #050510;
-      color: #ffffff;
+      background: #06060f;
+      color: #fff;
       font-family: 'Outfit', sans-serif;
       height: 100vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 32px 40px;
       overflow: hidden;
     }
 
@@ -29,256 +26,365 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse at 20% 20%, rgba(74, 222, 128, 0.07) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 80%, rgba(99, 102, 241, 0.06) 0%, transparent 60%);
+        radial-gradient(ellipse at 10% 90%, rgba(74,222,128,0.055) 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 10%, rgba(99,102,241,0.045) 0%, transparent 45%);
       pointer-events: none;
     }
 
-    /* ── Status bar ── */
+    /* ─── Top Bar ─── */
     #topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 24px;
-      background: rgba(10, 10, 20, 0.8);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      z-index: 10;
+      padding: 0 24px;
+      height: 56px;
+      background: rgba(6,6,15,0.95);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(255,255,255,0.055);
+      z-index: 50;
     }
 
     #logo {
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 1.05rem;
+      font-weight: 800;
       color: #4ade80;
+      letter-spacing: 0.04em;
     }
+    #logo-sub { font-size: 0.72rem; font-weight: 400; color: rgba(255,255,255,0.25); letter-spacing: 0.02em; }
 
-    #topbar-right {
+    #topbar-pills {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 8px;
     }
 
-    .badge {
+    .tb-pill {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      padding: 4px 13px;
       border-radius: 20px;
-      padding: 5px 14px;
-      font-size: 0.78rem;
-      color: #aaa;
-      font-weight: 500;
+      font-size: 0.75rem;
+      font-weight: 600;
+      font-family: 'Outfit', sans-serif;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.035);
+      color: rgba(255,255,255,0.4);
+      white-space: nowrap;
       transition: all 0.3s ease;
+      letter-spacing: 0.01em;
     }
 
-    #student-count-badge .dot {
-      width: 7px; height: 7px;
+    #status-pill.recording {
+      background: rgba(74,222,128,0.12);
+      border-color: rgba(74,222,128,0.28);
+      color: #4ade80;
+    }
+    #status-pill.error {
+      background: rgba(248,113,113,0.12);
+      border-color: rgba(248,113,113,0.28);
+      color: #f87171;
+    }
+
+    #latency-pill.fast  { color: #4ade80; border-color: rgba(74,222,128,0.22); }
+    #latency-pill.medium{ color: #fbbf24; border-color: rgba(251,191,36,0.22); }
+    #latency-pill.slow  { color: #f87171; border-color: rgba(248,113,113,0.22); }
+
+    .live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: dot-pulse 2s ease-in-out infinite;
+    }
+    @keyframes dot-pulse {
+      0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(74,222,128,0.5); }
+      50% { opacity:0.5; box-shadow:0 0 0 3px rgba(74,222,128,0); }
+    }
+
+    /* ─── Floating QR ─── */
+    #qr-card {
+      position: fixed;
+      top: 68px;
+      right: 20px;
+      z-index: 40;
+      background: rgba(8,8,20,0.88);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 12px 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    #qr-inner {
+      background: #fff;
+      border-radius: 10px;
+      padding: 7px;
+      line-height: 0;
+    }
+    #qr-card-label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+    }
+    #qr-url {
+      font-size: 0.58rem;
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      max-width: 130px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    /* ─── Main ─── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 200px 16px 40px;
+      position: relative;
+    }
+
+    /* Detected language badge */
+    #detected-lang-badge {
+      height: 22px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(74,222,128,0.55);
+      margin-bottom: 14px;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    #detected-lang-badge.visible { opacity: 1; }
+    #detected-lang-badge::before {
+      content: '';
+      width: 5px; height: 5px;
       border-radius: 50%;
       background: #4ade80;
     }
 
-    #status-badge { }
-    #status-badge.recording {
-      background: rgba(74, 222, 128, 0.12);
-      border-color: rgba(74, 222, 128, 0.3);
-      color: #4ade80;
-    }
-    #status-badge.error {
-      background: rgba(248, 113, 113, 0.12);
-      border-color: rgba(248, 113, 113, 0.3);
-      color: #f87171;
-    }
-
-    #latency-badge.fast { color: #4ade80; border-color: rgba(74,222,128,0.25); }
-    #latency-badge.medium { color: #fbbf24; border-color: rgba(251,191,36,0.25); }
-    #latency-badge.slow { color: #f87171; border-color: rgba(248,113,113,0.25); }
-
-    /* ── Waveform ── */
-    #waveform-container {
+    /* Caption */
+    #caption-wrap {
       width: 100%;
-      max-width: 900px;
-      height: 72px;
-      margin-bottom: 12px;
-      opacity: 0;
-      transition: opacity 0.5s ease;
-    }
-    #waveform-container.active { opacity: 1; }
-    #waveform {
-      width: 100%;
-      height: 100%;
-      border-radius: 16px;
-    }
-
-    /* ── Caption box ── */
-    #caption-box {
-      flex: 1;
+      max-width: 960px;
+      min-height: 180px;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 100%;
-      max-width: 1200px;
-      padding: 0 20px;
     }
 
     #caption {
-      font-size: 5rem;
+      font-size: 4.5rem;
       font-weight: 800;
       text-align: center;
-      line-height: 1.25;
-      color: #ffffff;
-      min-height: 2em;
-      transition: all 0.4s ease;
-      text-shadow: 0 0 40px rgba(74, 222, 128, 0.15);
+      line-height: 1.18;
+      color: #fff;
+      transition: all 0.35s ease;
+      word-break: break-word;
     }
     #caption.empty {
-      color: rgba(255,255,255,0.15);
-      font-size: 2rem;
+      color: rgba(255,255,255,0.08);
+      font-size: 1.6rem;
       font-weight: 400;
     }
 
-    /* ── Bottom controls ── */
-    #bottom {
-      display: flex;
-      align-items: flex-end;
-      gap: 28px;
+    /* Listening pulse (...) */
+    #listening-dots {
+      display: none;
+      align-items: center;
+      gap: 6px;
       margin-top: 20px;
-      padding: 20px 28px;
-      background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 20px;
+    }
+    #listening-dots.active { display: flex; }
+    #listening-dots span {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(74,222,128,0.45);
+      animation: dot-bounce 1.4s ease-in-out infinite;
+    }
+    #listening-dots span:nth-child(2) { animation-delay: 0.15s; }
+    #listening-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes dot-bounce {
+      0%,60%,100% { transform:translateY(0); background:rgba(74,222,128,0.4); }
+      30% { transform:translateY(-6px); background:rgba(74,222,128,0.9); }
     }
 
-    .control-group label {
-      display: block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.35);
-      margin-bottom: 8px;
+    /* Waveform */
+    #waveform-wrap {
+      width: 100%;
+      max-width: 720px;
+      height: 52px;
+      margin-top: 22px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #waveform-wrap.active { opacity: 1; }
+    #waveform { width:100%; height:100%; }
+
+    /* ─── Bottom Controls ─── */
+    #controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 24px;
+      background: rgba(6,6,15,0.92);
+      backdrop-filter: blur(24px);
+      border-top: 1px solid rgba(255,255,255,0.055);
     }
 
-    #lang-select {
-      background: rgba(255,255,255,0.06);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      padding: 10px 16px;
-      font-size: 0.95rem;
+    .lang-btn {
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 100px;
+      padding: 7px 18px;
+      font-size: 0.88rem;
       font-family: 'Outfit', sans-serif;
+      font-weight: 500;
       cursor: pointer;
-      outline: none;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
+      letter-spacing: 0.01em;
     }
-    #lang-select:hover { border-color: rgba(74,222,128,0.4); }
+    .lang-btn:hover {
+      background: rgba(74,222,128,0.08);
+      border-color: rgba(74,222,128,0.25);
+      color: #e2e8f0;
+    }
+    .lang-btn.active {
+      background: rgba(74,222,128,0.13);
+      border-color: rgba(74,222,128,0.45);
+      color: #4ade80;
+      font-weight: 700;
+    }
+
+    .ctrl-sep {
+      width: 1px; height: 26px;
+      background: rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
 
     #mic-btn {
-      background: linear-gradient(135deg, #4ade80, #22c55e);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%);
       color: #000;
       border: none;
-      border-radius: 14px;
-      padding: 14px 36px;
-      font-size: 1rem;
+      border-radius: 12px;
+      padding: 10px 28px;
+      font-size: 0.95rem;
       font-weight: 700;
       font-family: 'Outfit', sans-serif;
       cursor: pointer;
-      transition: all 0.25s ease;
-      box-shadow: 0 4px 24px rgba(74, 222, 128, 0.3);
       letter-spacing: 0.02em;
+      transition: all 0.22s ease;
+      box-shadow: 0 4px 18px rgba(74,222,128,0.28);
+      white-space: nowrap;
     }
-    #mic-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(74, 222, 128, 0.45); }
+    #mic-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(74,222,128,0.42); }
     #mic-btn:active { transform: translateY(0); }
     #mic-btn.active {
-      background: linear-gradient(135deg, #f87171, #ef4444);
-      box-shadow: 0 4px 24px rgba(248, 113, 113, 0.35);
+      background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+      box-shadow: 0 4px 18px rgba(248,113,113,0.32);
     }
-
-    #qr-container {
-      background: #fff;
-      padding: 10px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    }
-    #qr-label {
-      text-align: center;
-      font-size: 0.72rem;
-      color: rgba(255,255,255,0.4);
-      margin-top: 8px;
-      font-weight: 500;
-    }
+    #mic-btn.active:hover { box-shadow: 0 6px 22px rgba(248,113,113,0.48); }
   </style>
 </head>
 <body>
 
+  <!-- Top Bar -->
   <div id="topbar">
-    <div id="logo">⚡ Sarva</div>
-    <div id="topbar-right">
-      <div class="badge" id="student-count-badge">
-        <span class="dot"></span>
+    <div id="logo">⚡ Sarva <span id="logo-sub">Teacher Display</span></div>
+    <div id="topbar-pills">
+      <div class="tb-pill" id="student-pill">
+        <span class="live-dot"></span>
         <span id="student-count-text">0 Students</span>
       </div>
-      <div class="badge" id="latency-badge">⏱ —ms</div>
-      <div class="badge" id="status-badge">Not recording</div>
+      <div class="tb-pill" id="timer-pill">⏱ 00:00</div>
+      <div class="tb-pill" id="latency-pill">— ms</div>
+      <div class="tb-pill" id="status-pill">Not recording</div>
     </div>
   </div>
 
-  <div id="waveform-container">
-    <canvas id="waveform"></canvas>
+  <!-- Floating QR -->
+  <div id="qr-card">
+    <div id="qr-card-label">Scan to join</div>
+    <div id="qr-inner"><div id="qrcode"></div></div>
+    <div id="qr-url"></div>
   </div>
 
-  <div id="caption-box">
-    <div id="caption" class="empty">Waiting for speech...</div>
+  <!-- Main -->
+  <div id="main">
+    <div id="detected-lang-badge">Detecting language...</div>
+    <div id="caption-wrap">
+      <div id="caption" class="empty">Waiting for speech...</div>
+    </div>
+    <div id="listening-dots">
+      <span></span><span></span><span></span>
+    </div>
+    <div id="waveform-wrap">
+      <canvas id="waveform"></canvas>
+    </div>
   </div>
 
-  <div id="bottom">
-    <div class="control-group">
-      <label>Display Language</label>
-      <select id="lang-select">
-        <option value="en">English</option>
-        <option value="hi">हिन्दी</option>
-        <option value="ta">தமிழ்</option>
-        <option value="kn">ಕನ್ನಡ</option>
-        <option value="te">తెలుగు</option>
-        <option value="ml">മലയാളം</option>
-      </select>
-    </div>
-
-    <div class="control-group">
-      <label>Microphone</label>
-      <button id="mic-btn" onclick="toggleRecording()">🎤 Start Recording</button>
-    </div>
-
-    <div class="control-group">
-      <label>Student Join</label>
-      <div id="qr-container">
-        <div id="qrcode"></div>
-      </div>
-      <div id="qr-label">Scan to join</div>
-    </div>
+  <!-- Bottom Controls -->
+  <div id="controls">
+    <button class="lang-btn active" data-lang="en"  onclick="setDisplayLang(this)">English</button>
+    <button class="lang-btn"        data-lang="hi"  onclick="setDisplayLang(this)">हिन्दी</button>
+    <button class="lang-btn"        data-lang="ta"  onclick="setDisplayLang(this)">தமிழ்</button>
+    <button class="lang-btn"        data-lang="kn"  onclick="setDisplayLang(this)">ಕನ್ನಡ</button>
+    <button class="lang-btn"        data-lang="te"  onclick="setDisplayLang(this)">తెలుగు</button>
+    <button class="lang-btn"        data-lang="ml"  onclick="setDisplayLang(this)">മലയാളം</button>
+    <div class="ctrl-sep"></div>
+    <button id="mic-btn" onclick="toggleRecording()">🎤 Start Recording</button>
   </div>
 
   <script>
+// ── Socket ──
 let socket;
 if (typeof io !== "undefined") {
   socket = io();
 } else {
-  const statusBadge = document.getElementById("status-badge");
-  if (statusBadge) {
-    statusBadge.textContent = "Socket.io failed to load";
-    statusBadge.classList.add("error");
-  }
+  document.getElementById("status-pill").textContent = "Socket failed";
+  document.getElementById("status-pill").classList.add("error");
 }
 
+// ── State ──
 let stream = null;
 let loopActive = false;
+let displayLang = "en";
 let audioCtx = null;
 let analyser = null;
-let waveformAnimId = null;
+let waveAnimId = null;
+let sessionInterval = null;
+let sessionSeconds = 0;
+let listeningTimeout = null;
+
+// ── Language map for display ──
+const LANG_NAMES = {
+  "en-IN": "English", "hi-IN": "Hindi", "ta-IN": "Tamil",
+  "kn-IN": "Kannada", "te-IN": "Telugu", "ml-IN": "Malayalam",
+  "bn-IN": "Bengali", "gu-IN": "Gujarati", "mr-IN": "Marathi",
+  "pa-IN": "Punjabi", "or-IN": "Odia", "as-IN": "Assamese",
+};
 
 // ── QR Code ──
 async function generateQR() {
@@ -291,40 +397,59 @@ async function generateQR() {
     studentUrl = window.location.origin + "/student";
   }
 
+  document.getElementById("qr-url").textContent = studentUrl;
+
   if (typeof QRCode !== "undefined") {
     new QRCode(document.getElementById("qrcode"), {
-      text: studentUrl,
-      width: 120,
-      height: 120,
-      colorDark: "#000000",
-      colorLight: "#ffffff",
+      text: studentUrl, width: 116, height: 116,
+      colorDark: "#000", colorLight: "#fff",
     });
   } else {
-    document.getElementById("qrcode").innerHTML =
-      `<div style="color:#f87171;font-size:0.75rem;padding:14px;text-align:center">QR failed to load</div>`;
+    document.getElementById("qr-inner").innerHTML =
+      `<div style="width:116px;height:116px;display:flex;align-items:center;justify-content:center;color:#f87171;font-size:0.7rem;text-align:center">QR unavailable</div>`;
   }
-
-  document.getElementById("qr-label").innerHTML =
-    `<span style="font-size:0.65rem;color:rgba(255,255,255,0.3)">${studentUrl}</span>`;
 }
 generateQR();
 
-// ── Language select ──
-document.getElementById("lang-select").addEventListener("change", () => {});
+// ── Display language ──
+function setDisplayLang(btn) {
+  document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  displayLang = btn.dataset.lang;
+}
 
 // ── Socket events ──
 if (socket) {
   socket.on("caption", (data) => {
-    const lang = document.getElementById("lang-select").value;
-    const text = data[lang] || data.original;
+    const text = data[displayLang] || data.original;
+
+    clearTimeout(listeningTimeout);
+    document.getElementById("listening-dots").classList.remove("active");
+
     const el = document.getElementById("caption");
     el.classList.remove("empty");
     el.textContent = text;
 
+    // Show detected language badge
+    if (data.detectedLang) {
+      const name = LANG_NAMES[data.detectedLang] || data.detectedLang;
+      const badge = document.getElementById("detected-lang-badge");
+      badge.textContent = `Detected: ${name}`;
+      badge.classList.add("visible");
+    }
+
+    // Latency badge
     if (data.processingMs !== undefined) {
-      const badge = document.getElementById("latency-badge");
-      badge.textContent = `⏱ ${data.processingMs}ms`;
-      badge.className = "badge " + (data.processingMs < 1500 ? "fast" : data.processingMs < 3000 ? "medium" : "slow");
+      const lp = document.getElementById("latency-pill");
+      lp.textContent = `${data.processingMs} ms`;
+      lp.className = "tb-pill" + (data.processingMs < 1500 ? " fast" : data.processingMs < 3000 ? " medium" : " slow");
+    }
+
+    // After 4s of silence, show listening dots again if still recording
+    if (loopActive) {
+      listeningTimeout = setTimeout(() => {
+        document.getElementById("listening-dots").classList.add("active");
+      }, 4000);
     }
   });
 
@@ -334,25 +459,31 @@ if (socket) {
   });
 }
 
+// ── Session Timer ──
+function startTimer() {
+  sessionSeconds = 0;
+  sessionInterval = setInterval(() => {
+    sessionSeconds++;
+    const m = String(Math.floor(sessionSeconds / 60)).padStart(2, "0");
+    const s = String(sessionSeconds % 60).padStart(2, "0");
+    document.getElementById("timer-pill").textContent = `⏱ ${m}:${s}`;
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(sessionInterval);
+  document.getElementById("timer-pill").textContent = "⏱ 00:00";
+}
+
 // ── Recording ──
 async function toggleRecording() {
-  if (loopActive) {
-    stopRecording();
-  } else {
-    await startRecording();
-  }
+  loopActive ? stopRecording() : await startRecording();
 }
 
 async function startRecording() {
   try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      let errorMsg = "Microphone access is not supported by your browser/device.";
-      if (!window.isSecureContext) {
-        errorMsg += " Requires HTTPS or localhost.";
-      }
-      throw new Error(errorMsg);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Microphone access not supported." + (!window.isSecureContext ? " Requires HTTPS or localhost." : ""));
     }
-
     stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
@@ -360,160 +491,143 @@ async function startRecording() {
     loopActive = true;
     await fetch("/recording/start", { method: "POST" });
 
-    document.getElementById("mic-btn").textContent = "⏹ Stop Recording";
+    document.getElementById("mic-btn").innerHTML = "⏹ Stop Recording";
     document.getElementById("mic-btn").classList.add("active");
+    const sp = document.getElementById("status-pill");
+    sp.textContent = "🔴 Recording";
+    sp.className = "tb-pill recording";
 
-    const statusBadge = document.getElementById("status-badge");
-    statusBadge.textContent = "🔴 Recording...";
-    statusBadge.className = "badge recording";
-
+    startTimer();
     startWaveform();
-    recordLoop();
 
+    // Show listening dots immediately
+    document.getElementById("caption").classList.add("empty");
+    document.getElementById("caption").textContent = "Listening...";
+    document.getElementById("listening-dots").classList.add("active");
+
+    recordLoop();
   } catch (e) {
-    const statusBadge = document.getElementById("status-badge");
-    statusBadge.textContent = "⚠ " + e.message;
-    statusBadge.className = "badge error";
+    const sp = document.getElementById("status-pill");
+    sp.textContent = "⚠ " + e.message;
+    sp.className = "tb-pill error";
     loopActive = false;
   }
 }
 
 function stopRecording() {
   loopActive = false;
+  clearTimeout(listeningTimeout);
   fetch("/recording/stop", { method: "POST" });
 
-  if (stream) {
-    stream.getTracks().forEach((t) => t.stop());
-    stream = null;
-  }
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
 
   stopWaveform();
+  stopTimer();
 
-  document.getElementById("mic-btn").textContent = "🎤 Start Recording";
+  document.getElementById("mic-btn").innerHTML = "🎤 Start Recording";
   document.getElementById("mic-btn").classList.remove("active");
-
-  const statusBadge = document.getElementById("status-badge");
-  statusBadge.textContent = "Not recording";
-  statusBadge.className = "badge";
-
+  const sp = document.getElementById("status-pill");
+  sp.textContent = "Not recording";
+  sp.className = "tb-pill";
   document.getElementById("caption").textContent = "Waiting for speech...";
   document.getElementById("caption").classList.add("empty");
+  document.getElementById("listening-dots").classList.remove("active");
+  document.getElementById("detected-lang-badge").classList.remove("visible");
 }
 
 // ── Waveform ──
 function startWaveform() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 256;
-  const source = audioCtx.createMediaStreamSource(stream);
-  source.connect(analyser);
+  analyser.fftSize = 512;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
 
-  const container = document.getElementById("waveform-container");
+  const wrap = document.getElementById("waveform-wrap");
   const canvas = document.getElementById("waveform");
-  container.classList.add("active");
-  canvas.width = container.clientWidth;
-  canvas.height = container.clientHeight;
+  wrap.classList.add("active");
+  canvas.width = wrap.clientWidth * devicePixelRatio;
+  canvas.height = wrap.clientHeight * devicePixelRatio;
+  canvas.style.width = wrap.clientWidth + "px";
+  canvas.style.height = wrap.clientHeight + "px";
 
   drawWaveform();
 }
 
 function drawWaveform() {
   if (!analyser) return;
-  waveformAnimId = requestAnimationFrame(drawWaveform);
+  waveAnimId = requestAnimationFrame(drawWaveform);
 
   const canvas = document.getElementById("waveform");
   const ctx = canvas.getContext("2d");
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-  analyser.getByteTimeDomainData(dataArray);
+  const buf = analyser.frequencyBinCount;
+  const data = new Uint8Array(buf);
+  analyser.getByteTimeDomainData(data);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-  gradient.addColorStop(0, "rgba(74,222,128,0.3)");
-  gradient.addColorStop(0.5, "rgba(74,222,128,0.9)");
-  gradient.addColorStop(1, "rgba(74,222,128,0.3)");
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  grad.addColorStop(0,   "rgba(74,222,128,0.15)");
+  grad.addColorStop(0.5, "rgba(74,222,128,0.85)");
+  grad.addColorStop(1,   "rgba(74,222,128,0.15)");
 
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = gradient;
+  ctx.lineWidth = 2.5 * devicePixelRatio;
+  ctx.strokeStyle = grad;
   ctx.shadowColor = "#4ade80";
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = 10;
   ctx.beginPath();
 
-  const sliceWidth = canvas.width / bufferLength;
+  const slice = canvas.width / buf;
   let x = 0;
-
-  for (let i = 0; i < bufferLength; i++) {
-    const v = dataArray[i] / 128.0;
-    const y = (v * canvas.height) / 2;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-    x += sliceWidth;
+  for (let i = 0; i < buf; i++) {
+    const y = (data[i] / 128) * (canvas.height / 2);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    x += slice;
   }
-
   ctx.lineTo(canvas.width, canvas.height / 2);
   ctx.stroke();
 }
 
 function stopWaveform() {
-  if (waveformAnimId) {
-    cancelAnimationFrame(waveformAnimId);
-    waveformAnimId = null;
-  }
-  if (audioCtx) {
-    audioCtx.close();
-    audioCtx = null;
-    analyser = null;
-  }
-  const container = document.getElementById("waveform-container");
+  if (waveAnimId) { cancelAnimationFrame(waveAnimId); waveAnimId = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; analyser = null; }
+  const wrap = document.getElementById("waveform-wrap");
+  wrap.classList.remove("active");
   const canvas = document.getElementById("waveform");
-  container.classList.remove("active");
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 }
 
 // ── Record loop ──
 function recordLoop() {
-  if (!loopActive || !stream || !stream.active) return;
+  if (!loopActive || !stream?.active) return;
 
   const chunks = [];
   let recorder;
-
   try {
     recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-  } catch (e) {
+  } catch {
     recorder = new MediaRecorder(stream);
   }
 
-  recorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) chunks.push(e.data);
-  };
+  recorder.ondataavailable = e => { if (e.data?.size > 0) chunks.push(e.data); };
 
   recorder.onstop = () => {
     if (!loopActive) return;
-
     if (chunks.length > 0) {
       const blob = new Blob(chunks, { type: "audio/webm" });
       if (blob.size > 500) {
         const form = new FormData();
         form.append("audio", blob, "audio.webm");
         fetch("/audio-chunk", { method: "POST", body: form })
-          .catch((err) => console.warn("Upload error:", err));
+          .catch(err => console.warn("Upload error:", err));
       }
     }
-
     if (loopActive) recordLoop();
   };
 
-  recorder.onerror = () => {
-    if (loopActive) setTimeout(() => recordLoop(), 300);
-  };
+  recorder.onerror = () => { if (loopActive) setTimeout(recordLoop, 300); };
 
   recorder.start();
-
-  setTimeout(() => {
-    if (recorder.state === "recording") recorder.stop();
-  }, 2000);
+  setTimeout(() => { if (recorder.state === "recording") recorder.stop(); }, 2000);
 }
   </script>
 </body>

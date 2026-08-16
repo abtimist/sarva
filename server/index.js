@@ -94,12 +94,14 @@ app.post("/audio-chunk", upload.single("audio"), async (req, res) => {
     );
 
     const originalText = transcribeRes.data.text;
-    if (!originalText || originalText.trim() === "") {
+    const detectedLang = transcribeRes.data.language || null;
+
+    if (!originalText || originalText.trim() === "" || originalText.trim().length < 4) {
       fs.unlinkSync(req.file.path);
       return res.json({ ok: true, text: "" });
     }
 
-    console.log("Transcribed:", originalText);
+    console.log(`Transcribed [${detectedLang}]:`, originalText);
 
     const translations = await Promise.all(
       Object.keys(LANGUAGES).map((lang) =>
@@ -107,7 +109,7 @@ app.post("/audio-chunk", upload.single("audio"), async (req, res) => {
       )
     );
 
-    const payload = { original: originalText };
+    const payload = { original: originalText, detectedLang };
     translations.forEach(([lang, text]) => {
       payload[lang] = text;
     });

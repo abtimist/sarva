@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
-import tempfile, os, subprocess
+import tempfile, os, subprocess, wave, struct, math
 
 def load_env():
     for env_path in [".env", "../.env", "server/.env"]:
@@ -18,6 +18,24 @@ load_env()
 app = Flask(__name__)
 
 SARVAM_API_KEY = os.environ.get("SARVAM_API_KEY")
+SILENCE_THRESHOLD = int(os.environ.get("SILENCE_RMS_THRESHOLD", 500))
+
+def compute_rms(wav_path):
+    """Compute Root Mean Square energy of a WAV file. Returns 0 on error."""
+    try:
+        with wave.open(wav_path, 'r') as wf:
+            n_frames = wf.getnframes()
+            if n_frames == 0:
+                return 0
+            raw = wf.readframes(n_frames)
+            num_samples = len(raw) // 2
+            if num_samples == 0:
+                return 0
+            samples = struct.unpack(f'{num_samples}h', raw[:num_samples * 2])
+            rms = math.sqrt(sum(s * s for s in samples) / num_samples)
+            return rms
+    except Exception:
+        return 0
 
 def convert_to_wav(input_path):
     wav_path = input_path + ".wav"
@@ -45,6 +63,11 @@ def transcribe():
         if not os.path.exists(wav_path) or os.path.getsize(wav_path) < 500:
             return jsonify({"text": ""}), 200
 
+        rms = compute_rms(wav_path)
+        if rms < SILENCE_THRESHOLD:
+            print(f"Silence detected (RMS={rms:.0f} < {SILENCE_THRESHOLD}), skipping.")
+            return jsonify({"text": ""}), 200
+
         with open(wav_path, "rb") as f:
             response = requests.post(
                 "https://api.sarvam.ai/speech-to-text",
@@ -63,7 +86,7 @@ def transcribe():
             result = response.json()
             text = result.get("transcript", "").strip()
             lang = result.get("language_code", "en-IN")
-            print(f"Sarvam transcribed [{lang}]: {text}")
+            print(f"Sarvam [{lang}] (RMS={rms:.0f}): {text}")
             return jsonify({"text": text, "language": lang})
         else:
             print(f"Sarvam error: {response.status_code} - {response.text}")
@@ -81,5 +104,6 @@ def transcribe():
 
 if __name__ == "__main__":
     transcribe_port = int(os.environ.get("TRANSCRIBE_PORT", 5001))
-    print(f"Sarvam STT service ready on port {transcribe_port}")
+    print(f"Sarvam STT service ready on port {transcribe_port} (silence threshold RMS={SILENCE_THRESHOLD})")
     app.run(port=transcribe_port, debug=False)
+
