@@ -11,3 +11,7 @@ __pycache__/
 # OS files
 .DS_Store
 .venv/
+# SQLite database
+server/*.db
+server/*.db-shm
+server/*.db-wal
