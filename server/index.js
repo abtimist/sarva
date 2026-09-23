@@ -109,13 +109,6 @@ db.exec(`
     FOREIGN KEY (note_id) REFERENCES notes(id),
     FOREIGN KEY (recording_id) REFERENCES recordings(id)
   );
-
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
 `);
 
 // Migration: add recording_id to old transcripts if missing
@@ -133,7 +126,6 @@ let currentRecordingId = null;
 let recordingSeq = 0;
 let chunkSeq = 0;
 let isRecording = false;
-let activeLanguages = ["en", "hi"]; // Default active languages
 
 function startNewSession() {
   const result = db.prepare("INSERT INTO sessions (started_at) VALUES (datetime('now'))").run();
@@ -148,38 +140,6 @@ function endCurrentSession() {
   }
 }
 
-// ═══════════════════════════════════════════════
-// AUTHENTICATION API
-// ═══════════════════════════════════════════════
-
-app.post("/api/signup", (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
-  
-  try {
-    const result = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)").run(email, password);
-    res.json({ success: true, userId: result.lastInsertRowid });
-  } catch (err) {
-    if (err.message.includes("UNIQUE constraint failed")) {
-      res.status(400).json({ error: "Email already exists" });
-    } else {
-      res.status(500).json({ error: err.message });
-    }
-  }
-});
-
-app.post("/api/login", (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
-  
-  const user = db.prepare("SELECT * FROM users WHERE email = ? AND password = ?").get(email, password);
-  if (user) {
-    res.json({ success: true, userId: user.id });
-  } else {
-    res.status(401).json({ error: "Invalid credentials" });
-  }
-});
-
 // Start initial session
 startNewSession();
 
@@ -188,25 +148,18 @@ startNewSession();
 // ═══════════════════════════════════════════════
 async function translateText(text, targetLang) {
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
-    const res = await axios.get(url, { timeout: 3500 });
-    
-    // Check if the response contains translated text
-    if (res.data && res.data.responseData && res.data.responseData.translatedText) {
-      // MyMemory sometimes returns the exact same English text if it's struggling.
-      // But it's generally reliable.
-      return res.data.responseData.translatedText;
-    }
-    return text;
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await axios.get(url, { timeout: 8000 });
+    return res.data[0].map((item) => item[0]).join("");
   } catch (e) {
-    return text; // fallback to original if rate limited
+    return text;
   }
 }
 
 async function translateAll(text) {
   const results = {};
   await Promise.allSettled(
-    activeLanguages.map(async (lang) => {
+    Object.keys(LANGUAGES).map(async (lang) => {
       results[lang] = await translateText(text, lang);
     })
   );
@@ -631,7 +584,6 @@ io.on("connection", (socket) => {
   if (clientType === "student") {
     studentSockets.add(socket.id);
     io.emit("student-count", studentSockets.size);
-    socket.emit("layout-update", activeLanguages);
 
     socket.on("join-session", (sessionId) => {
       const sid = parseInt(sessionId) || currentSessionId;
@@ -653,18 +605,6 @@ io.on("connection", (socket) => {
     if (currentSessionId) {
       socket.join("session:" + currentSessionId);
     }
-    socket.emit("layout-update", activeLanguages);
-    
-    socket.on("set-layout", (langs) => {
-      if (Array.isArray(langs)) {
-        activeLanguages = langs;
-        io.emit("layout-update", activeLanguages);
-      }
-    });
-
-    socket.on("set-isl", (visible) => {
-      io.emit("isl-visibility", visible);
-    });
   }
 
   socket.on("disconnect", () => {
