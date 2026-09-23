@@ -188,9 +188,16 @@ startNewSession();
 // ═══════════════════════════════════════════════
 async function translateText(text, targetLang) {
   try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-    const res = await axios.get(url, { timeout: 2500 });
-    return res.data[0].map((item) => item[0]).join("");
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
+    const res = await axios.get(url, { timeout: 3500 });
+    
+    // Check if the response contains translated text
+    if (res.data && res.data.responseData && res.data.responseData.translatedText) {
+      // MyMemory sometimes returns the exact same English text if it's struggling.
+      // But it's generally reliable.
+      return res.data.responseData.translatedText;
+    }
+    return text;
   } catch (e) {
     return text; // fallback to original if rate limited
   }

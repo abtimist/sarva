@@ -101,7 +101,7 @@
       flex: 1; display: flex; align-items: center; justify-content: center;
       background: #000; overflow: hidden;
     }
-    #isl-video { max-height: 100%; max-width: 100%; object-fit: contain; }
+    #isl-image { max-height: 100%; max-width: 100%; object-fit: contain; }
     #isl-label {
       position: absolute; top: 10px; left: 10px;
       background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px;
@@ -154,6 +154,27 @@
     #isl-toggle-btn { background: rgba(236,72,153,0.1); border-color: rgba(236,72,153,0.3); color: #f472b6; }
     #isl-toggle-btn.active { background: rgba(236,72,153,0.25); border-color: rgba(236,72,153,0.5); }
     #notes-btn{background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.2);color:#818cf8;}
+    
+    /* NOTES MODAL */
+    #notes-modal {
+      position: fixed; top: 0; right: -400px; width: 400px; height: 100vh;
+      background: rgba(8,8,20,0.95); backdrop-filter: blur(20px);
+      border-left: 1px solid rgba(255,255,255,0.1); z-index: 100;
+      transition: right 0.3s; display: flex; flex-direction: column;
+    }
+    #notes-modal.open { right: 0; }
+    #notes-header {
+      padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #notes-header h2 { font-size: 1rem; color: #fff; }
+    #close-notes { background: none; border: none; color: #fff; cursor: pointer; font-size: 1.2rem; }
+    #notes-content { flex: 1; padding: 16px; overflow-y: auto; }
+    .note-item {
+      background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 12px;
+    }
+    .note-date { font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+    .note-text { font-size: 0.8rem; color: rgba(255,255,255,0.8); white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -184,7 +205,7 @@
     <div id="isl-label">Indian Sign Language</div>
     <button id="close-isl" onclick="toggleISL()">✕</button>
     <div id="isl-video-container">
-      <video id="isl-video" muted playsinline></video>
+      <img id="isl-image" src="" alt="ISL Sign" style="display:none;" />
       <div id="isl-current-word"></div>
     </div>
   </div>
@@ -201,7 +222,15 @@
     <div class="ctrl-sep"></div>
     <button class="action-btn" id="mic-btn" onclick="toggleRecording()">🎤 Start</button>
     <button class="action-btn" id="isl-toggle-btn" onclick="toggleISL()">🤟 ISL</button>
-    <button class="action-btn" id="notes-btn" onclick="/* toggle notes logic */">📝 Notes</button>
+    <button class="action-btn" id="notes-btn" onclick="toggleNotes()">📝 Notes</button>
+  </div>
+  
+  <div id="notes-modal">
+    <div id="notes-header">
+      <h2>Session Notes</h2>
+      <button id="close-notes" onclick="toggleNotes()">✕</button>
+    </div>
+    <div id="notes-content">Loading notes...</div>
   </div>
 
   <script>
@@ -350,6 +379,43 @@
       document.getElementById("qr-url").textContent = url;
       if(typeof QRCode !== "undefined") {
         new QRCode(document.getElementById("qrcode"), {text: url, width: 90, height: 90, colorDark: "#000", colorLight: "#fff"});
+      }
+    }
+    
+    // Notes
+    let notesOpen = false;
+    async function toggleNotes() {
+      notesOpen = !notesOpen;
+      const modal = document.getElementById("notes-modal");
+      if (notesOpen) {
+        modal.classList.add("open");
+        loadNotes();
+      } else {
+        modal.classList.remove("open");
+      }
+    }
+
+    async function loadNotes() {
+      if (!currentSessionId) {
+        document.getElementById("notes-content").innerHTML = "No active session recorded yet.";
+        return;
+      }
+      try {
+        const res = await fetch(`/api/notes/${currentSessionId}`);
+        const notes = await res.json();
+        const container = document.getElementById("notes-content");
+        if (notes.length === 0) {
+          container.innerHTML = "No notes saved yet.";
+          return;
+        }
+        container.innerHTML = notes.map(n => `
+          <div class="note-item">
+            <div class="note-date">${new Date(n.created_at).toLocaleString()}</div>
+            <div class="note-text">${n.content}</div>
+          </div>
+        `).join("");
+      } catch (e) {
+        document.getElementById("notes-content").innerHTML = "Failed to load notes.";
       }
     }
     
