@@ -189,17 +189,17 @@ startNewSession();
 async function translateText(text, targetLang) {
   try {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-    const res = await axios.get(url, { timeout: 8000 });
+    const res = await axios.get(url, { timeout: 2500 });
     return res.data[0].map((item) => item[0]).join("");
   } catch (e) {
-    return text;
+    return text; // fallback to original if rate limited
   }
 }
 
 async function translateAll(text) {
   const results = {};
   await Promise.allSettled(
-    Object.keys(LANGUAGES).map(async (lang) => {
+    activeLanguages.map(async (lang) => {
       results[lang] = await translateText(text, lang);
     })
   );
