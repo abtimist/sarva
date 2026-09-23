@@ -109,6 +109,13 @@ db.exec(`
     FOREIGN KEY (note_id) REFERENCES notes(id),
     FOREIGN KEY (recording_id) REFERENCES recordings(id)
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Migration: add recording_id to old transcripts if missing
@@ -126,6 +133,7 @@ let currentRecordingId = null;
 let recordingSeq = 0;
 let chunkSeq = 0;
 let isRecording = false;
+let activeLanguages = ["en", "hi"]; // Default active languages
 
 function startNewSession() {
   const result = db.prepare("INSERT INTO sessions (started_at) VALUES (datetime('now'))").run();
@@ -139,6 +147,38 @@ function endCurrentSession() {
     currentSessionId = null;
   }
 }
+
+// ═══════════════════════════════════════════════
+// AUTHENTICATION API
+// ═══════════════════════════════════════════════
+
+app.post("/api/signup", (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  
+  try {
+    const result = db.prepare("INSERT INTO users (email, password) VALUES (?, ?)").run(email, password);
+    res.json({ success: true, userId: result.lastInsertRowid });
+  } catch (err) {
+    if (err.message.includes("UNIQUE constraint failed")) {
+      res.status(400).json({ error: "Email already exists" });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+app.post("/api/login", (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  
+  const user = db.prepare("SELECT * FROM users WHERE email = ? AND password = ?").get(email, password);
+  if (user) {
+    res.json({ success: true, userId: user.id });
+  } else {
+    res.status(401).json({ error: "Invalid credentials" });
+  }
+});
 
 // Start initial session
 startNewSession();
@@ -584,6 +624,7 @@ io.on("connection", (socket) => {
   if (clientType === "student") {
     studentSockets.add(socket.id);
     io.emit("student-count", studentSockets.size);
+    socket.emit("layout-update", activeLanguages);
 
     socket.on("join-session", (sessionId) => {
       const sid = parseInt(sessionId) || currentSessionId;
@@ -605,6 +646,18 @@ io.on("connection", (socket) => {
     if (currentSessionId) {
       socket.join("session:" + currentSessionId);
     }
+    socket.emit("layout-update", activeLanguages);
+    
+    socket.on("set-layout", (langs) => {
+      if (Array.isArray(langs)) {
+        activeLanguages = langs;
+        io.emit("layout-update", activeLanguages);
+      }
+    });
+
+    socket.on("set-isl", (visible) => {
+      io.emit("isl-visibility", visible);
+    });
   }
 
   socket.on("disconnect", () => {

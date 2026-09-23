@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sarva — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #06060f; color: #fff; font-family: 'Outfit', sans-serif;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    body::before {
+      content:''; position:fixed; inset:0;
+      background: radial-gradient(ellipse at 10% 90%, rgba(74,222,128,0.05) 0%, transparent 45%),
+                  radial-gradient(ellipse at 90% 10%, rgba(99,102,241,0.04) 0%, transparent 45%);
+      pointer-events:none; z-index:-1;
+    }
+
+    #topbar {
+      flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
+      padding:0 24px; height:48px; background:rgba(6,6,15,0.95); backdrop-filter:blur(24px);
+      border-bottom:1px solid rgba(255,255,255,0.05); z-index:50;
+    }
+    #logo{display:flex;align-items:baseline;gap:8px;font-size:0.95rem;font-weight:800;color:#4ade80;}
+    #logo-sub{font-size:0.68rem;font-weight:400;color:rgba(255,255,255,0.22);}
+    #topbar-pills{display:flex;align-items:center;gap:6px;}
+    .tb-pill{display:flex;align-items:center;gap:5px;padding:3px 11px;border-radius:16px;font-size:0.7rem;font-weight:600;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.35);white-space:nowrap;}
+    #status-pill.recording{background:rgba(74,222,128,0.1);border-color:rgba(74,222,128,0.25);color:#4ade80;}
+    #status-pill.error{background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.25);color:#f87171;}
+    #latency-pill.fast{color:#4ade80;}#latency-pill.medium{color:#fbbf24;}#latency-pill.slow{color:#f87171;}
+    .live-dot{width:5px;height:5px;border-radius:50%;background:#4ade80;animation:dot-pulse 2s ease-in-out infinite;}
+    @keyframes dot-pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+    #qr-card{position:fixed;top:56px;right:14px;z-index:40;background:rgba(8,8,20,0.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;}
+    #qr-card.minimized #qr-inner,#qr-card.minimized #qr-url{display:none;}
+    #qr-card.minimized{padding:5px 8px;}
+    #qr-inner{background:#fff;border-radius:6px;padding:4px;line-height:0;}
+    #qr-card-label{font-size:0.5rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.2);}
+    #qr-url{font-size:0.48rem;color:rgba(255,255,255,0.15);text-align:center;max-width:110px;word-break:break-all;}
+
+    /* MAIN GRID LAYOUT */
+    #main {
+      flex:1; display:grid; gap:1px; overflow:hidden; background:rgba(255,255,255,0.05);
+    }
+    #main.layout-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+    #main.layout-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+    #main.layout-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    #main.layout-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    
+    /* Layout 3 special case: last item spans full width if needed */
+    #main.layout-3 .text-panel:nth-child(3) { grid-column: span 2; }
+
+    .text-panel{background:#06060f; display:flex; flex-direction:column; overflow:hidden;}
+    .panel-header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:8px 18px;background:rgba(6,6,15,0.6);border-bottom:1px solid rgba(255,255,255,0.035);}
+    .panel-title{font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25);}
+    
+    .remove-panel-btn {
+      background: none; border: none; color: rgba(248,113,113,0.5); cursor: pointer; font-size: 0.8rem;
+    }
+    .remove-panel-btn:hover { color: #f87171; }
+
+    .text-scroll{flex:1;overflow-y:auto;padding:28px 32px;}
+    .text-scroll::-webkit-scrollbar{width:3px;}
+    .text-scroll::-webkit-scrollbar-track{background:transparent;}
+    .text-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:3px;}
+
+    .paragraph {
+      font-size: 2rem;
+      line-height: 2;
+      color: rgba(255,255,255,0.5);
+      word-break: break-word;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .paragraph .text { white-space: pre-wrap; }
+    .paragraph .text .cursor {
+      display: inline-block; width: 2px; height: 1.8rem; background: #4ade80; margin-left: 2px;
+      animation: blink 1s step-end infinite; vertical-align: text-bottom;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .text-placeholder{color:rgba(255,255,255,0.1);font-size:0.9rem;text-align:center;margin-top:auto;padding-top:60px;}
+
+    /* ISL PANEL */
+    #isl-panel {
+      display: none; /* hidden by default */
+      flex-shrink: 0;
+      height: 200px;
+      background: rgba(0,0,0,0.8);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      position: relative;
+    }
+    #isl-panel.visible { display: flex; }
+    #isl-video-container {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      background: #000; overflow: hidden;
+    }
+    #isl-video { max-height: 100%; max-width: 100%; object-fit: contain; }
+    #isl-label {
+      position: absolute; top: 10px; left: 10px;
+      background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px;
+      font-size: 0.7rem; font-weight: 600; color: #4ade80;
+    }
+    #isl-current-word {
+      position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+      font-size: 1.5rem; font-weight: 700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    #close-isl {
+      position: absolute; top: 10px; right: 10px;
+      background: none; border: none; color: rgba(255,255,255,0.5); font-size: 1.2rem; cursor: pointer;
+    }
+    #close-isl:hover { color: #fff; }
+
+    #waveform-wrap{flex-shrink:0;width:100%;height:38px;opacity:0;transition:opacity 0.3s;background:rgba(6,6,15,0.4);}
+    #waveform-wrap.active{opacity:1;}
+    #waveform{width:100%;height:100%;}
+
+    /* CONTROLS AREA */
+    #controls {
+      flex-shrink:0; display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+      gap:8px; padding:8px 20px; background:rgba(6,6,15,0.92); backdrop-filter:blur(24px);
+      border-top:1px solid rgba(255,255,255,0.05);
+    }
+    
+    .lang-picker-group {
+      display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.04);
+      padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .lang-picker-group select {
+      background: transparent; color: #e2e8f0; border: none; font-family: 'Outfit', sans-serif;
+      font-size: 0.78rem; outline: none; max-width: 150px;
+    }
+    .lang-picker-group option { background: #06060f; color: #fff; }
+    .lang-picker-group button {
+      background: #4ade80; color: #000; border: none; border-radius: 4px; padding: 4px 8px;
+      font-weight: 700; font-size: 0.75rem; cursor: pointer;
+    }
+
+    .ctrl-sep{width:1px;height:22px;background:rgba(255,255,255,0.06);flex-shrink:0; margin: 0 4px;}
+    
+    .action-btn {
+      display:flex;align-items:center;gap:5px; border-radius:9px;padding:7px 14px;
+      font-size:0.78rem;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;
+      border:1px solid transparent; transition:all 0.2s;
+    }
+    #mic-btn{background:linear-gradient(135deg,#4ade80 0%,#16a34a 100%);color:#000;}
+    #mic-btn.active{background:linear-gradient(135deg,#f87171 0%,#dc2626 100%);}
+    #isl-toggle-btn { background: rgba(236,72,153,0.1); border-color: rgba(236,72,153,0.3); color: #f472b6; }
+    #isl-toggle-btn.active { background: rgba(236,72,153,0.25); border-color: rgba(236,72,153,0.5); }
+    #notes-btn{background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.2);color:#818cf8;}
+  </style>
+</head>
+<body>
+
+  <div id="topbar">
+    <div id="logo">⚡ Sarva <span id="logo-sub">Dashboard</span></div>
+    <div id="topbar-pills">
+      <div class="tb-pill"><span class="live-dot"></span><span id="student-count-text">0</span></div>
+      <div class="tb-pill" id="timer-pill">⏱ 00:00</div>
+      <div class="tb-pill" id="latency-pill">— ms</div>
+      <div class="tb-pill" id="status-pill">Idle</div>
+    </div>
+  </div>
+
+  <div id="qr-card" onclick="this.classList.toggle('minimized')">
+    <div id="qr-card-label">Scan to join</div>
+    <div id="qr-inner"><div id="qrcode"></div></div>
+    <div id="qr-url"></div>
+  </div>
+
+  <!-- Main Grid for Languages -->
+  <div id="main" class="layout-2">
+    <!-- Panels injected dynamically -->
+  </div>
+
+  <!-- ISL Panel -->
+  <div id="isl-panel">
+    <div id="isl-label">Indian Sign Language</div>
+    <button id="close-isl" onclick="toggleISL()">✕</button>
+    <div id="isl-video-container">
+      <video id="isl-video" muted playsinline></video>
+      <div id="isl-current-word"></div>
+    </div>
+  </div>
+
+  <div id="waveform-wrap"><canvas id="waveform"></canvas></div>
+
+  <div id="controls">
+    <div class="lang-picker-group">
+      <select id="lang-select">
+        <!-- Populated via JS -->
+      </select>
+      <button onclick="addLanguagePanel()">+ Add</button>
+    </div>
+    <div class="ctrl-sep"></div>
+    <button class="action-btn" id="mic-btn" onclick="toggleRecording()">🎤 Start</button>
+    <button class="action-btn" id="isl-toggle-btn" onclick="toggleISL()">🤟 ISL</button>
+    <button class="action-btn" id="notes-btn" onclick="/* toggle notes logic */">📝 Notes</button>
+  </div>
+
+  <script>
+    // -- AUTH CHECK --
+    if (!localStorage.getItem('sarva_user_id')) {
+      window.location.href = '/';
+    }
+
+    let socket;
+    if(typeof io!=="undefined"){socket=io();}
+
+    // State
+    let stream=null, loopActive=false;
+    let audioCtx=null, analyser=null, waveAnimId=null;
+    let sessionInterval=null, sessionSeconds=0;
+    let retryCount=0, isUploading=false;
+    const MAX_RETRIES=5;
+    let captions=[];
+    let currentSessionId=null;
+    
+    // Dynamic Layout State
+    const ALL_LANGUAGES = {
+      "en": "English", "hi": "Hindi", "ta": "Tamil", "te": "Telugu", "kn": "Kannada", "ml": "Malayalam",
+      "mr": "Marathi", "gu": "Gujarati", "pa": "Punjabi", "bn": "Bengali", "ur": "Urdu",
+      "fr": "French", "es": "Spanish", "de": "German", "ja": "Japanese", "ko": "Korean", "zh-CN": "Chinese"
+    };
+    
+    let activeLanguages = ["en", "hi"]; // Default starting languages
+    
+    function initLanguages() {
+      const select = document.getElementById("lang-select");
+      Object.entries(ALL_LANGUAGES).forEach(([code, name]) => {
+        const opt = document.createElement("option");
+        opt.value = code;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      renderGrid();
+    }
+
+    function addLanguagePanel() {
+      if (activeLanguages.length >= 4) {
+        alert("Maximum of 4 languages allowed at once.");
+        return;
+      }
+      const val = document.getElementById("lang-select").value;
+      if (activeLanguages.includes(val)) return;
+      activeLanguages.push(val);
+      renderGrid();
+      if(socket) socket.emit("set-layout", activeLanguages);
+    }
+    
+    function removeLanguage(langCode) {
+      if (activeLanguages.length <= 1) return; // keep at least 1
+      activeLanguages = activeLanguages.filter(l => l !== langCode);
+      renderGrid();
+      if(socket) socket.emit("set-layout", activeLanguages);
+    }
+
+    function renderGrid() {
+      const main = document.getElementById("main");
+      main.className = `layout-${activeLanguages.length}`;
+      main.innerHTML = "";
+      
+      activeLanguages.forEach(lang => {
+        const name = ALL_LANGUAGES[lang] || lang;
+        const panel = document.createElement("div");
+        panel.className = "text-panel";
+        panel.id = `panel-${lang}`;
+        
+        panel.innerHTML = `
+          <div class="panel-header">
+            <span class="panel-title">${name}</span>
+            ${activeLanguages.length > 1 ? `<button class="remove-panel-btn" onclick="removeLanguage('${lang}')">✕</button>` : ""}
+          </div>
+          <div class="text-scroll" id="scroll-${lang}">
+            <div class="paragraph" id="para-${lang}">
+              <div class="text-placeholder" id="empty-${lang}">${loopActive ? "Listening..." : "Waiting for speech..."}</div>
+            </div>
+          </div>
+        `;
+        main.appendChild(panel);
+      });
+      
+      // Notify server of active languages if needed, or translate locally
+      renderParagraphs();
+    }
+
+    function renderParagraphs(){
+      if (captions.length === 0) return;
+      activeLanguages.forEach(lang => {
+        const para = document.getElementById(`para-${lang}`);
+        const scroll = document.getElementById(`scroll-${lang}`);
+        const empty = document.getElementById(`empty-${lang}`);
+        if(!para || !scroll || !empty) return;
+        
+        empty.style.display = "none";
+        const old = para.querySelector(".text");
+        if(old) old.remove();
+
+        const fullText = captions.map(c => c[lang] || c.original).join(" ");
+        const span = document.createElement("span");
+        span.className = "text";
+        span.textContent = fullText;
+
+        const cursor = document.createElement("span");
+        cursor.className = "cursor";
+        span.appendChild(cursor);
+
+        para.appendChild(span);
+        scroll.scrollTop = scroll.scrollHeight;
+      });
+      
+      // ISL Sync
+      if (document.getElementById("isl-panel").classList.contains("visible")) {
+        const latestEn = captions.map(c => c["en"] || c.original).join(" ");
+        if (typeof playISLForText === "function") playISLForText(latestEn);
+      }
+    }
+
+    // -- ISL Integration (Mock dictionary player logic for real-time text) --
+    let islVisible = false;
+    function toggleISL() {
+      islVisible = !islVisible;
+      const panel = document.getElementById("isl-panel");
+      const btn = document.getElementById("isl-toggle-btn");
+      if (islVisible) {
+        panel.classList.add("visible");
+        btn.classList.add("active");
+        if(!document.getElementById("isl-translator-script")){
+           const s = document.createElement("script");
+           s.id = "isl-translator-script";
+           s.src = "js/isl-translator.js";
+           document.body.appendChild(s);
+        }
+      } else {
+        panel.classList.remove("visible");
+        btn.classList.remove("active");
+      }
+      if(socket) socket.emit("set-isl", islVisible);
+    }
+
+    // QR
+    async function generateQR(){
+      const url = window.location.origin + "/student";
+      document.getElementById("qr-url").textContent = url;
+      if(typeof QRCode !== "undefined") {
+        new QRCode(document.getElementById("qrcode"), {text: url, width: 90, height: 90, colorDark: "#000", colorLight: "#fff"});
+      }
+    }
+    
+    // -- Audio & Recording --
+    function startTimer(){sessionSeconds=0;sessionInterval=setInterval(()=>{sessionSeconds++;const m=String(Math.floor(sessionSeconds/60)).padStart(2,"0");const s=String(sessionSeconds%60).padStart(2,"0");document.getElementById("timer-pill").textContent=`⏱ ${m}:${s}`;},1000);}
+    function stopTimer(){clearInterval(sessionInterval);document.getElementById("timer-pill").textContent="⏱ 00:00";}
+
+    async function toggleRecording(){loopActive?stopRecording():await startRecording();}
+
+    async function startRecording(){
+      try{
+        if(!navigator.mediaDevices?.getUserMedia)throw new Error("Mic not supported");
+        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+        loopActive=true;retryCount=0;captions.length=0;
+        
+        const r=await fetch("/recording/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
+        const d=await r.json();
+        currentSessionId=d.sessionId;
+        
+        document.getElementById("mic-btn").innerHTML="⏹ Stop";
+        document.getElementById("mic-btn").classList.add("active");
+        document.getElementById("status-pill").textContent="🔴 Live";
+        document.getElementById("status-pill").className="tb-pill recording";
+        
+        startTimer();startWaveform();
+        activeLanguages.forEach(lang => {
+          const empty = document.getElementById(`empty-${lang}`);
+          if(empty) { empty.textContent="Listening..."; empty.style.display="block"; }
+        });
+        
+        renderParagraphs();
+        recordLoop();
+      }catch(e){
+        document.getElementById("status-pill").textContent="⚠ Error";
+        document.getElementById("status-pill").className="tb-pill error";
+        loopActive=false;
+      }
+    }
+
+    async function stopRecording(){
+      loopActive=false;
+      await fetch("/recording/stop",{method:"POST"});
+      if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+      stopWaveform();stopTimer();
+      document.getElementById("mic-btn").innerHTML="🎤 Start";
+      document.getElementById("mic-btn").classList.remove("active");
+      document.getElementById("status-pill").textContent="Idle";
+      document.getElementById("status-pill").className="tb-pill";
+      
+      activeLanguages.forEach(lang => {
+        const empty = document.getElementById(`empty-${lang}`);
+        if(empty) { empty.textContent="Waiting for speech..."; empty.style.display="block"; }
+      });
+    }
+
+    function startWaveform(){audioCtx=new(AudioContext||webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=512;audioCtx.createMediaStreamSource(stream).connect(analyser);const wrap=document.getElementById("waveform-wrap");const canvas=document.getElementById("waveform");wrap.classList.add("active");canvas.width=wrap.clientWidth*devicePixelRatio;canvas.height=wrap.clientHeight*devicePixelRatio;canvas.style.width=wrap.clientWidth+"px";canvas.style.height=wrap.clientHeight+"px";drawWaveform();}
+    function drawWaveform(){if(!analyser)return;waveAnimId=requestAnimationFrame(drawWaveform);const canvas=document.getElementById("waveform");const ctx=canvas.getContext("2d");const buf=analyser.frequencyBinCount;const data=new Uint8Array(buf);analyser.getByteTimeDomainData(data);ctx.clearRect(0,0,canvas.width,canvas.height);const grad=ctx.createLinearGradient(0,0,canvas.width,0);grad.addColorStop(0,"rgba(74,222,128,0.08)");grad.addColorStop(0.5,"rgba(74,222,128,0.6)");grad.addColorStop(1,"rgba(74,222,128,0.08)");ctx.lineWidth=1.8*devicePixelRatio;ctx.strokeStyle=grad;ctx.beginPath();const slice=canvas.width/buf;let x=0;for(let i=0;i<buf;i++){const y=(data[i]/128)*(canvas.height/2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=slice;}ctx.lineTo(canvas.width,canvas.height/2);ctx.stroke();}
+    function stopWaveform(){if(waveAnimId){cancelAnimationFrame(waveAnimId);waveAnimId=null;}if(audioCtx){audioCtx.close();audioCtx=null;analyser=null;}document.getElementById("waveform-wrap").classList.remove("active");}
+
+    const CHUNK_DURATION=2500;
+    function recordLoop(){
+      if(!loopActive||!stream?.active)return;
+      const chunks=[];
+      let recorder;
+      try{recorder=new MediaRecorder(stream,{mimeType:"audio/webm"});}catch{recorder=new MediaRecorder(stream);}
+      recorder.ondataavailable=e=>{if(e.data?.size>0)chunks.push(e.data);};
+      recorder.onstop=()=>{
+        if(!loopActive)return;
+        if(chunks.length>0&&!isUploading){
+          const blob=new Blob(chunks,{type:"audio/webm"});
+          if(blob.size>800){
+            isUploading=true;
+            const form=new FormData();form.append("audio",blob,"audio.webm");
+            fetch("/audio-chunk",{method:"POST",body:form}).then(()=>{retryCount=0;isUploading=false;}).catch(()=>{isUploading=false;retryCount++;if(retryCount>=MAX_RETRIES){stopRecording();document.getElementById("status-pill").textContent="⚠ Lost";document.getElementById("status-pill").className="tb-pill error";}});
+          }
+        }
+        if(loopActive)recordLoop();
+      };
+      recorder.onerror=()=>{if(loopActive)setTimeout(recordLoop,1500);};
+      recorder.start();
+      setTimeout(()=>{if(recorder.state==="recording")recorder.stop();},CHUNK_DURATION);
+    }
+
+    if(socket){
+      socket.on("layout-update", (langs) => {
+        if(Array.isArray(langs)){
+          activeLanguages = langs;
+          renderGrid();
+        }
+      });
+      socket.on("caption",(data)=>{
+        retryCount=0;
+        captions.push(data);
+        if(captions.length>300)captions.shift();
+        renderParagraphs();
+        if(data.processingMs!==undefined){const lp=document.getElementById("latency-pill");lp.textContent=`${data.processingMs}ms`;lp.className="tb-pill"+(data.processingMs<1500?" fast":data.processingMs<3000?" medium":" slow");}
+      });
+      socket.on("student-count",(c)=>{document.getElementById("student-count-text").textContent=c;});
+    }
+
+    window.onload = () => {
+      initLanguages();
+      generateQR();
+    };
+  </script>
+</body>
+</html>
