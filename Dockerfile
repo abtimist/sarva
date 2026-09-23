@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
-# Install Node.js 22 and curl
-RUN apt-get update && apt-get install -y curl && \
+# Install Node.js 22, curl, and ffmpeg (required for audio conversion)
+RUN apt-get update && apt-get install -y curl ffmpeg && \
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
