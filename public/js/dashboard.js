@@ -38,10 +38,16 @@ function renderPara(paraId,scrollId,lang){
   if(old) old.remove();
 
   if(captions.length===0){empty.style.display="block";return;}
-  empty.style.display="none";
 
-  // Merge ALL captions into ONE single paragraph with spaces
-  const fullText=captions.map(c=>c[lang]||"").join(" ").trim();
+  let fullText;
+  if(lang==="en"){
+    fullText=captions.map(c=>c.en||"").join(" ").trim();
+  }else{
+    fullText=captions.map(c=>c[lang]||c.en||"").join(" ").trim();
+  }
+
+  if(!fullText){empty.style.display="block";return;}
+  empty.style.display="none";
 
   const span=document.createElement("span");
   span.className="text";
