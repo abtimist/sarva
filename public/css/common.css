@@ -1,0 +1,61 @@
+/* ═══════════════════════════════════════════════
+   Sarva — Common Styles
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --primary-size: 1.4rem;
+  --secondary-size: 0.92rem;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #050510;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(74, 222, 128, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 90%, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+
+/* ── Shared Button Styles ── */
+.lang-btn {
+  background: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 100px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.lang-btn:hover {
+  background: rgba(74,222,128,0.07);
+  border-color: rgba(74,222,128,0.2);
+  color: #e2e8f0;
+}
+.lang-btn.active {
+  background: rgba(74,222,128,0.12);
+  border-color: rgba(74,222,128,0.4);
+  color: #4ade80;
+  font-weight: 700;
+}
+
+/* ── Animations ── */
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }

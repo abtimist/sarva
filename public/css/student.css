@@ -1,0 +1,378 @@
+:root {
+  --primary-size: 1.4rem;
+  --secondary-size: 0.92rem;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #050510;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 14px 40px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(74, 222, 128, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 90%, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ── Header ── */
+header {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-top: 4px;
+}
+
+#app-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #4ade80;
+  letter-spacing: 0.04em;
+}
+
+#conn-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  font-weight: 500;
+}
+
+#connected-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #f87171;
+  transition: background 0.3s;
+}
+#connected-dot.on {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74,222,128,0.6);
+}
+#connected-dot.reconnecting {
+  background: #fbbf24;
+  animation: reconnect-pulse 1s ease-in-out infinite;
+}
+@keyframes reconnect-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Language Picker ── */
+#lang-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 12px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.lang-btn {
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.55);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 100px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.lang-btn:hover {
+  background: rgba(74,222,128,0.1);
+  border-color: rgba(74,222,128,0.3);
+  color: #fff;
+}
+.lang-btn.active {
+  background: rgba(74,222,128,0.15);
+  color: #4ade80;
+  border-color: rgba(74,222,128,0.5);
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(74,222,128,0.15);
+}
+
+/* ── Font Controls ── */
+#controls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ctrl-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.22);
+}
+
+.font-btn {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.9rem;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.font-btn:hover {
+  background: rgba(74,222,128,0.1);
+  border-color: rgba(74,222,128,0.3);
+  color: #4ade80;
+}
+
+/* ── Captions — flowing paragraph style ── */
+#captions {
+  width: 100%;
+  max-width: 600px;
+}
+
+.caption-area {
+  padding: 0 4px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.caption-primary {
+  font-size: var(--primary-size);
+  line-height: 1.8;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.caption-primary .cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.4em;
+  background: #4ade80;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+
+.caption-secondary {
+  font-size: var(--secondary-size);
+  color: rgba(255,255,255,0.25);
+  margin-top: 8px;
+  line-height: 1.5;
+  font-weight: 400;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+#waiting {
+  color: rgba(255,255,255,0.18);
+  font-size: 0.95rem;
+  margin-top: 60px;
+  text-align: center;
+  font-weight: 400;
+}
+
+.listening-dots {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 30px;
+}
+.listening-dots.active { display: flex; }
+.listening-dots span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(74,222,128,0.4);
+  animation: dot-bounce 1.4s ease-in-out infinite;
+}
+.listening-dots span:nth-child(2) { animation-delay: 0.15s; }
+.listening-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dot-bounce {
+  0%,60%,100% { transform:translateY(0); background:rgba(74,222,128,0.4); }
+  30% { transform:translateY(-5px); background:rgba(74,222,128,0.9); }
+}
+
+/* ── Notes Button ── */
+#notes-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.2);
+  color: #818cf8;
+  border-radius: 100px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+#notes-toggle:hover {
+  background: rgba(99,102,241,0.18);
+  border-color: rgba(99,102,241,0.4);
+}
+#notes-toggle .badge {
+  background: rgba(99,102,241,0.25);
+  padding: 1px 6px;
+  border-radius: 7px;
+  font-size: 0.68rem;
+}
+
+#notes-page-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 600px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(74,222,128,0.12) 100%);
+  border: 1px solid rgba(99,102,241,0.3);
+  color: #a5b4fc;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 0.9rem;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  margin-bottom: 14px;
+}
+#notes-page-btn:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.25) 0%, rgba(74,222,128,0.2) 100%);
+  border-color: rgba(99,102,241,0.5);
+  color: #c7d2fe;
+}
+
+/* ── Notes Drawer ── */
+#student-notes-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 90;
+}
+#student-notes-overlay.open { display: block; }
+
+#student-notes-drawer {
+  position: fixed;
+  right: -380px;
+  top: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 90vw;
+  background: rgba(8,8,20,0.97);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255,255,255,0.05);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s ease;
+}
+#student-notes-drawer.open { right: 0; }
+
+.snotes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+.snotes-header h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+}
+.snotes-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.3);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.snotes-close:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+#student-notes-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+#student-notes-list::-webkit-scrollbar { width: 3px; }
+#student-notes-list::-webkit-scrollbar-track { background: transparent; }
+#student-notes-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 3px; }
+
+.snote-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-left: 3px solid rgba(99,102,241,0.4);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  animation: noteSlideIn 0.3s ease;
+}
+@keyframes noteSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.snote-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.snote-card-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+}
+.snote-card-time {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.2);
+}
+.snote-card-content {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.5);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+#student-notes-empty {
+  text-align: center;
+  color: rgba(255,255,255,0.12);
+  font-size: 0.82rem;
+  margin-top: 40px;
+}

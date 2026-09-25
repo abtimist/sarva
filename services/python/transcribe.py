@@ -3,7 +3,7 @@ import requests
 import tempfile, os, subprocess, wave, struct, math, time
 
 def load_env():
-    for env_path in [".env", "../.env", "server/.env"]:
+    for env_path in ["../../.env", "../.env", ".env"]:
         if os.path.exists(env_path):
             with open(env_path, "r") as f:
                 for line in f:

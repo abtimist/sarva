@@ -1,11 +1,11 @@
 {
-  "name": "server",
-  "version": "2.0.0",
+  "name": "sarva-server",
+  "version": "3.0.0",
   "description": "Sarva real-time multilingual captioning server",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js"
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
   },
   "keywords": [],
   "author": "",

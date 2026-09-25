@@ -1,17 +1,27 @@
-# Environment variables
-.env
-
-# Dependencies
 node_modules/
-
-# Python cache
+.venv/
 __pycache__/
 *.pyc
 
-# OS files
+# Environment
+.env
+
+# Database
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# OS
 .DS_Store
-.venv/
-# SQLite database
-server/*.db
-server/*.db-shm
-server/*.db-wal
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+.docker/
+
+# Temp
+*.tmp
+audio-uploads/
