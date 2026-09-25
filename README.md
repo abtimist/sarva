@@ -1,29 +1,35 @@
 # Sarva
 ### *One classroom, every language*
 
-> An AI-driven real-time multilingual captioning system that removes language barriers and makes classroom education inclusive for all students.
+> An AI-driven real-time multilingual captioning system that removes language barriers and makes classroom education inclusive for all students. Now supercharged with AI Smart Notes, Cloudflare Tunnels, and persistent Session Management!
 
 ---
 
 ## What is Sarva?
 
-Sarva is a real-time captioning system built for Indian classrooms. When a teacher speaks, Sarva instantly transcribes the speech and delivers live captions to every student's phone in their preferred language — Hindi, Tamil, Kannada, Telugu, or Malayalam — simultaneously. No app installation required. Students simply scan a QR code.
+Sarva is a real-time captioning system built for Indian classrooms. When a teacher speaks, Sarva instantly transcribes the speech and delivers live captions to every student's phone in their preferred language — Hindi, Tamil, Kannada, Telugu, or Malayalam — simultaneously. No app installation is required. Students simply scan a QR code.
+
+The latest version transforms Sarva from just a live captioning tool into a **complete teaching dashboard**. It automatically records and stores your session transcripts, allowing you to generate AI-powered Smart Notes, create manual notes, and export beautiful PDFs of your lectures.
 
 ---
 
-## Features
+## 🚀 New Features in V3
+
+- 🧠 **AI Smart Notes** — Generate beautifully formatted Markdown study guides directly from your raw lecture transcripts using Google's Gemini 3.8-Flash model. Download them instantly as beautiful PDFs.
+- 🗄️ **Persistent Database & Sessions** — All your lectures, recordings, and transcripts are now automatically saved in a local SQLite database (`sarva.db`). Never lose a lecture again.
+- 🌍 **Global Student Access** — We've integrated Cloudflare Tunnels (`untun`). Students can join from *anywhere* in the world via a secure HTTPS link, without needing to be on the same WiFi network!
+- 📓 **Manual Notes & Merging** — Save standalone notes, or seamlessly merge new recordings into existing session notes. 
+- 🎛️ **Full Teacher Dashboard** — A completely redesigned Glassmorphism dashboard replacing the old teacher UI. Manage your current session, view past notes, and access settings from a clean, unified interface.
+
+## Core Features
 
 - 🎙️ **Real-Time Speech Transcription** — Continuous 2-second audio chunks powered by Sarvam AI (Saaras V3)
 - 🌐 **6-Language Simultaneous Translation** — English, Hindi, Tamil, Kannada, Telugu, and Malayalam
 - 🎵 **Live Microphone Waveform Visualizer** — Canvas-based real-time soundwave visualizer using Web Audio API
 - 👥 **Active Student Connection Counter** — Real-time live student count tracking via Socket.io
-- ⏱️ **Latency & Performance Monitor** — End-to-end processing time measured and color-coded in real-time
-- 🔇 **RMS Silence & Hallucination Filtering** — Built-in energy thresholding (RMS filter) and length filtering to eliminate false transcriptions during quiet periods
-- 🏷️ **Automatic Language Detection Badge** — Detects and displays the teacher's spoken language on screen
-- ⏳ **Session Timer** — Real-time session duration tracker on the top status bar
+- 🔇 **RMS Silence & Hallucination Filtering** — Built-in energy thresholding to eliminate false transcriptions during quiet periods
 - 📱 **Floating QR Code Joining** — Non-intrusive floating QR panel; students scan to connect instantly
 - 🔠 **Student Font Size Controls** — `A−` / `A+` controls on mobile for comfortable caption reading
-- 🎨 **Modern Glassmorphism Design System** — Built with Google Fonts (Outfit), smooth gradients, and dark mode aesthetics
 
 ---
 
@@ -40,50 +46,12 @@ Python STT Service (transcribe.py)
 Sarvam AI (Saaras V3 API) Speech-to-Text & Language Detection
      ↓
 Node.js Orchestrator (index.js)
-     ↓ ──[ Length < 4 chars? ]──► Filter out background noise
-Parallel Translation across 6 languages (Google Translate API) + Latency Timing
+     ↓ ──[ Saves to SQLite DB & Filters noise ]
+Parallel Translation across 6 languages (Google Translate API)
      ↓
 WebSocket Broadcast via Socket.io
-     ├──► Teacher Display: Displays live caption, detected language, soundwave, and latency
-     └──► Student Phones: Displays caption in each student's chosen language & custom text size
-```
-
----
-
-## System Architecture
-
-```
-┌────────────────────────────────────────────────────────┐
-│                     Teacher Device                     │
-│  Browser → MediaRecorder → Web Audio Waveform Canvas   │
-│                 POST /audio-chunk                      │
-└───────────────────────────┬────────────────────────────┘
-                            │
-┌───────────────────────────▼────────────────────────────┐
-│               Node.js Server (index.js)                │
-│    Express + Socket.io + Multer + Latency Tracker     │
-│                           │                            │
-│           POST /transcribe                             │
-│                           │                            │
-│    ┌──────────────────────▼───────────────────────┐    │
-│    │    Python Flask Server (transcribe.py)       │    │
-│    │    - RMS Silence Filter (wave + struct)      │    │
-│    │    - Sarvam AI Saaras V3 STT API             │    │
-│    └──────────────────────┬───────────────────────┘    │
-│                           │ transcript & language      │
-│            Google Translate API (6 languages)          │
-│                           │                            │
-│            WebSocket broadcast → all clients           │
-└──────────────┬──────────────────────────┬──────────────┘
-               │                          │
-┌──────────────▼──────┐   ┌───────────────▼──────────────┐
-│   Teacher Display   │   │     Student Mobile Devices   │
-│   teacher.html      │   │     student.html             │
-│   - Large Captions  │   │     - Language Selector      │
-│   - Waveform Canvas │   │     - Font Size Controls     │
-│   - Student Counter │   │     - Floating QR Join       │
-│   - Latency Badge   │   │                              │
-└─────────────────────┘   └──────────────────────────────┘
+     ├──► Teacher Display: Displays live caption, detected language, soundwave
+     └──► Student Phones: Displays caption in each student's chosen language
 ```
 
 ---
@@ -92,22 +60,23 @@ WebSocket Broadcast via Socket.io
 
 | Layer | Technology |
 |---|---|
-| Frontend | HTML, Vanilla CSS (Glassmorphism), JavaScript (ES6+), Canvas API, Web Audio API, QRCode.js, Google Fonts (Outfit) |
-| Backend | Node.js, Express.js, Socket.io, Multer, Axios |
-| Transcription Service | Python 3, Flask, Wave, Struct |
-| Speech-to-Text | Sarvam AI API (`saaras:v3`) |
+| Frontend | HTML, Vanilla CSS (Glassmorphism), JavaScript (ES6+), html2pdf.js, marked.js, QRCode.js |
+| Backend | Node.js, Express.js, Socket.io, Multer, untun (Cloudflare tunnels) |
+| Database | SQLite3 (`better-sqlite3`) |
+| Transcription Service | Python 3, Flask, Wave, Struct, Sarvam AI API (`saaras:v3`) |
+| AI Summaries | Google Gemini API (`gemini-3.8-flash`) |
 | Translation | Google Translate API |
-| Real-time Communication | WebSockets (Socket.io) |
 | Audio Processing | ffmpeg |
 
 ---
 
 ## Prerequisites
 
-- Node.js (v18+) and npm
+- Node.js (v20+) and npm
 - Python 3.10+
 - ffmpeg
 - Sarvam AI API Key (Free tier available at [sarvam.ai](https://www.sarvam.ai))
+- Gemini API Key (Available via Google AI Studio)
 
 ---
 
@@ -121,7 +90,9 @@ cd sarva
 
 **2. Install Node.js dependencies**
 ```bash
+cd server
 npm install
+cd ..
 ```
 
 **3. Set up Python Virtual Environment & Install dependencies**
@@ -145,14 +116,10 @@ brew install ffmpeg
 
 **5. Environment Configuration**
 
-Create a `.env` file in the root of the project (or copy from `.env.example`):
-```bash
-cp .env.example .env
-```
-
-Set up your variables inside `.env`:
+Create a `.env` file in the root of the project:
 ```env
 SARVAM_API_KEY=your_sarvam_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 PORT=3000
 TRANSCRIBE_PORT=5001
 SILENCE_RMS_THRESHOLD=500
@@ -162,11 +129,12 @@ SILENCE_RMS_THRESHOLD=500
 
 ## Running Sarva
 
-Open two terminal windows:
+Open two terminal windows from the root directory:
 
 **Terminal 1 — Start the Python Transcription Service**
 ```bash
-.venv/bin/python server/transcribe.py
+source .venv/bin/activate
+python server/transcribe.py
 ```
 *Output:*
 ```
@@ -175,28 +143,38 @@ Sarvam STT service ready on port 5001 (silence threshold RMS=500)
 
 **Terminal 2 — Start the Node.js Web Server**
 ```bash
-node server/index.js
+cd server
+npm start
 ```
 *Output:*
 ```
-Server running at http://localhost:3000
-Student URL (for QR): http://192.168.x.x:3000/student
+Server: http://localhost:3000
+Student (Local): http://192.168.x.x:3000/student
+Starting cloudflared tunnel to http://localhost:3000
+Student (Global): https://<random-words>.trycloudflare.com/student
 ```
 
 ---
 
 ## Usage
 
-### Teacher
+### Teacher Dashboard
 1. Open `http://localhost:3000` on the classroom main screen or laptop connected to a projector.
-2. Select your preferred display language pill.
-3. Click **🎤 Start Recording** and begin speaking.
-4. Real-time captions, spoken language detection, live audio waveform, student count, and processing latency appear automatically.
+2. The new **Dashboard** provides access to the live classroom, notes, and settings.
+3. Click **Start Recording** to begin a session. 
+4. The QR code provided will automatically point to the Global Cloudflare URL, meaning students can scan it and connect instantly without needing to be on the same WiFi network!
+5. Stop the recording when done. Navigate to the **Notes** page to manage transcripts.
+
+### AI Notes & Export
+1. On the **Notes** page, you'll see a history of all your lectures grouped by date.
+2. Click **📥 Raw Transcript** to download exactly what was spoken.
+3. Click **✨ Download AI Summarized Notes** to send the raw transcripts to Gemini and download a beautifully formatted study guide PDF instantly.
+4. You can also manually add notes to your dashboard!
 
 ### Students
-1. Connect to the classroom WiFi network.
-2. Scan the floating QR code displayed in the top-right corner of the teacher display.
-3. Select your language preference (English, हिन्दी, தமிழ், ಕನ್ನಡ, తెలుగు, മലയാളം).
+1. Scan the floating QR code displayed on the teacher's dashboard.
+2. Select your language preference (English, हिन्दी, தமிழ், ಕನ್ನಡ, తెలుగు, മലയാളം).
+3. The captions will stream live in your chosen language!
 4. Use `A−` / `A+` buttons to adjust caption text size to your preference.
 
 ---
@@ -211,24 +189,6 @@ Student URL (for QR): http://192.168.x.x:3000/student
 | Kannada | kn | ಕನ್ನಡ |
 | Telugu | te | తెలుగు |
 | Malayalam | ml | മലയാളം |
-
----
-
-## Project Structure
-
-```
-sarva/
-├── .env.example        # Environment variables template
-├── .gitignore          # Git ignore rules (node_modules, .env, .venv, etc.)
-├── package.json        # Node.js project configuration & scripts
-├── README.md           # Project documentation
-├── public/
-│   ├── student.html    # Student mobile caption viewer with language & font controls
-│   └── teacher.html    # Teacher display with waveform, stats bar, & floating QR
-└── server/
-    ├── index.js        # Node.js orchestrator (Express, Socket.io, Translation)
-    └── transcribe.py   # Python STT microservice (Sarvam AI API & RMS Silence Filter)
-```
 
 ---
 
