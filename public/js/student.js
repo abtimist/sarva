@@ -226,16 +226,7 @@ function renderBuffer() {
   primary.appendChild(cursor);
   area.appendChild(primary);
 
-  if (selectedLang !== "en") {
-    const enTexts = captionBuffer.map(d => d.en || "").filter(t => t);
-    const enFull = enTexts.join(" ");
-    if (enFull && enFull !== primaryText) {
-      const secondary = document.createElement("div");
-      secondary.className = "caption-secondary";
-      secondary.textContent = enFull;
-      area.appendChild(secondary);
-    }
-  }
+  // Removed secondary caption logic for single language view
 
   container.appendChild(area);
   window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });

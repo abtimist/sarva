@@ -1,5 +1,6 @@
 const express = require("express");
 const db = require("../db");
+const { generateSmartNote } = require("../llm");
 
 const router = express.Router();
 
@@ -76,8 +77,12 @@ router.post("/", (req, res) => {
   if (!content || !content.trim()) return res.status(400).json({ error: "content required" });
 
   const { getCurrentSessionId, getIo } = req.app.locals;
-  const sid = sessionId || getCurrentSessionId();
-  if (!sid) return res.status(400).json({ error: "no active session" });
+  let sid = sessionId || getCurrentSessionId();
+  
+  if (!sid) {
+    const res = db.prepare("INSERT INTO sessions (title, started_at) VALUES (?, datetime('now'))").run("Manual Session");
+    sid = res.lastInsertRowid;
+  }
 
   try {
     const result = db.prepare(
@@ -122,14 +127,16 @@ router.post("/:noteId/merge", (req, res) => {
     db.prepare("UPDATE notes SET content = ?, updated_at = datetime('now') WHERE id = ?").run(newContent, noteId);
     db.prepare("INSERT INTO note_recordings (note_id, recording_id) VALUES (?, ?)").run(noteId, recordingId);
 
+    let finalTitle = note.title;
     if (note.title.startsWith("Recording ")) {
-      db.prepare("UPDATE notes SET title = ? WHERE id = ?").run(`Note (from ${note.title})`, noteId);
+      finalTitle = `Note (from ${note.title})`;
+      db.prepare("UPDATE notes SET title = ? WHERE id = ?").run(finalTitle, noteId);
     }
 
     getIo().to("session:" + note.session_id).emit("note-updated", {
       noteId,
       sessionId: note.session_id,
-      title: note.title.startsWith("Recording ") ? `Note (from ${note.title})` : note.title,
+      title: finalTitle,
       content: newContent,
     });
 
@@ -155,6 +162,22 @@ router.delete("/:id", (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Summarize text for AI Notes
+router.post("/summarize", async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "Text is required" });
+  }
+  
+  try {
+    const summary = await generateSmartNote(text);
+    res.json({ markdown: summary });
+  } catch (e) {
+    console.error("AI summarization failed:", e);
+    res.status(500).json({ error: "Failed to generate AI summary" });
   }
 });
 

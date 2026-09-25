@@ -3,6 +3,8 @@ const http = require("http");
 const os = require("os");
 const path = require("path");
 const cors = require("cors");
+const { startTunnel } = require("untun");
+const { generateSmartNote } = require("./llm");
 const { Server } = require("socket.io");
 
 const db = require("./db");
@@ -30,7 +32,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, "../../public")));
 
 // ── State ──
@@ -180,7 +182,8 @@ function finalizeRecording(sessionId, recordingId) {
 // ── Routes ──
 app.use(routes);
 
-app.get("/server-ip", (req, res) => res.json({ ip: LOCAL_IP, port: PORT }));
+let globalUrl = null;
+app.get("/server-ip", (req, res) => res.json({ ip: LOCAL_IP, port: PORT, globalUrl }));
 app.get("/current-session", (req, res) => res.json({ sessionId: currentSessionId }));
 app.get("/student", (req, res) => res.sendFile(path.join(__dirname, "../../public/student.html")));
 app.get("/notes", (req, res) => res.sendFile(path.join(__dirname, "../../public/notes.html")));
@@ -193,9 +196,16 @@ setupSocket(io, () => currentSessionId);
 const PORT = process.env.PORT || 3000;
 const LOCAL_IP = getLocalIP();
 
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", async () => {
   console.log(`Server: http://localhost:${PORT}`);
-  console.log(`Student: http://${LOCAL_IP}:${PORT}/student`);
+  console.log(`Student (Local): http://${LOCAL_IP}:${PORT}/student`);
+  try {
+    const tunnel = await startTunnel({ port: PORT });
+    globalUrl = await tunnel.getURL();
+    console.log(`Student (Global): ${globalUrl}/student`);
+  } catch (err) {
+    console.error("Untun error:", err);
+  }
 });
 
 process.on("SIGINT", () => { endCurrentSession(); db.close(); process.exit(0); });

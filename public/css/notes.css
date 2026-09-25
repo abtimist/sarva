@@ -236,9 +236,34 @@ header {
 .note-card-content {
   font-size: 0.85rem;
   line-height: 1.7;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.7);
   word-break: break-word;
-  white-space: pre-wrap;
+}
+
+/* ── Markdown Styles ── */
+.markdown-body h3 {
+  font-size: 0.95rem;
+  color: #fff;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 4px;
+}
+.markdown-body h3:first-child {
+  margin-top: 0;
+}
+.markdown-body ul {
+  margin-left: 18px;
+  margin-bottom: 10px;
+}
+.markdown-body li {
+  margin-bottom: 4px;
+}
+.markdown-body p {
+  margin-bottom: 10px;
+}
+.markdown-body strong {
+  color: #4ade80;
 }
 
 /* ── Empty / Loading ── */

@@ -16,10 +16,88 @@ const LANG_MAP={hi:{name:"Hindi",flag:"🇮🇳"},ta:{name:"Tamil",flag:"🇮�
 const LANG_NAMES={"en-IN":"English","hi-IN":"Hindi","ta-IN":"Tamil","kn-IN":"Kannada","te-IN":"Telugu","ml-IN":"Malayalam"};
 
 // QR
-async function generateQR(){let url;try{const r=await fetch("/server-ip");const d=await r.json();url=`http://${d.ip}:${d.port}/student`;}catch{url=window.location.origin+"/student";}document.getElementById("qr-url").textContent=url;if(typeof QRCode!=="undefined")new QRCode(document.getElementById("qrcode"),{text:url,width:90,height:90,colorDark:"#000",colorLight:"#fff"});}
+async function generateQR() {
+  let localUrl, globalUrl;
+  try {
+    const r = await fetch("/server-ip");
+    const d = await r.json();
+    localUrl = `http://${d.ip}:${d.port}/student`;
+    globalUrl = d.globalUrl ? `${d.globalUrl}/student` : localUrl;
+  } catch {
+    localUrl = window.location.origin + "/student";
+    globalUrl = localUrl;
+  }
+  document.getElementById("qr-url-local").textContent = localUrl.replace('http://', '');
+  document.getElementById("qr-url-global").textContent = globalUrl.replace('https://', '').replace('http://', '');
+  
+  if (typeof QRCode !== "undefined") {
+    new QRCode(document.getElementById("qrcode-local"), { text: localUrl, width: 160, height: 160, colorDark: "#000", colorLight: "#fff" });
+    new QRCode(document.getElementById("qrcode-global"), { text: globalUrl, width: 160, height: 160, colorDark: "#000", colorLight: "#fff" });
+  }
+}
 generateQR();
 
-function setDisplayLang(btn){document.querySelectorAll(".lang-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");displayLang=btn.dataset.lang;const cfg=LANG_MAP[displayLang];document.getElementById("lang-label").textContent=cfg.name;document.getElementById("lang-flag").textContent=cfg.flag;renderParagraphs();}
+function openQRModal() { document.getElementById('qr-modal-overlay').classList.add('visible'); }
+function closeQRModal() { document.getElementById('qr-modal-overlay').classList.remove('visible'); }
+function switchQR(type) {
+  document.querySelectorAll('.qr-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.qr-content').forEach(c => c.classList.add('hidden'));
+  document.getElementById('tab-' + type).classList.add('active');
+  document.getElementById('qr-content-' + type).classList.remove('hidden');
+}
+
+function openLayoutModal() { document.getElementById('layout-modal-overlay').classList.add('visible'); }
+function closeLayoutModal() { document.getElementById('layout-modal-overlay').classList.remove('visible'); }
+function setLayout(type) {
+  const btnSingle = document.getElementById('layout-btn-single');
+  const btnDouble = document.getElementById('layout-btn-double');
+  const panelEn = document.getElementById('panel-en');
+  
+  if (type === 'single') {
+    btnSingle.style.background = 'rgba(74,222,128,0.15)';
+    btnSingle.style.borderColor = 'rgba(74,222,128,0.4)';
+    btnSingle.style.color = '#4ade80';
+    btnDouble.style.background = 'rgba(255,255,255,0.05)';
+    btnDouble.style.borderColor = 'rgba(255,255,255,0.1)';
+    btnDouble.style.color = '#fff';
+    panelEn.style.display = 'none';
+  } else {
+    btnDouble.style.background = 'rgba(74,222,128,0.15)';
+    btnDouble.style.borderColor = 'rgba(74,222,128,0.4)';
+    btnDouble.style.color = '#4ade80';
+    btnSingle.style.background = 'rgba(255,255,255,0.05)';
+    btnSingle.style.borderColor = 'rgba(255,255,255,0.1)';
+    btnSingle.style.color = '#fff';
+    panelEn.style.display = 'flex';
+  }
+  closeLayoutModal();
+}
+
+function toggleDropdown() {
+  const opts = document.getElementById('dropdown-options');
+  if (opts) opts.classList.toggle('show');
+}
+
+function selectLang(lang, el) {
+  document.querySelectorAll('.dropdown-opt').forEach(opt => opt.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const opts = document.getElementById('dropdown-options');
+  if (opts) opts.classList.remove('show');
+  
+  displayLang = lang;
+  const cfg = LANG_MAP[displayLang];
+  document.getElementById("lang-label").textContent = cfg.name;
+  document.getElementById("lang-flag").textContent = cfg.flag;
+  renderParagraphs();
+}
+
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('lang-dropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    const opts = document.getElementById('dropdown-options');
+    if (opts) opts.classList.remove('show');
+  }
+});
 
 // ── ONE single paragraph per panel ──
 function renderParagraphs(){
